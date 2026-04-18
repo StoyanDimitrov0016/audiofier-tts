@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 
 import type {
-  AudioApiError,
   AudioHealth,
   GenerateAudioInput,
   GenerateAudioResult,
@@ -13,61 +13,63 @@ function getAudioApiUrl() {
   return process.env.AUDIO_API_URL ?? DEFAULT_AUDIO_API_URL
 }
 
+const GenerateAudioInputSchema = z.object({
+  text: z.string().refine((value) => value.trim().length > 0, 'Lesson text is required.'),
+  stem: z.string().trim().min(1, 'Lesson name is required.'),
+  suffix: z.enum(['.md', '.txt']),
+  voice: z.string().trim().min(1, 'Voice is required.'),
+  speed: z.number().positive('Speed must be greater than 0.'),
+  wavOnly: z.boolean(),
+}) satisfies z.ZodType<GenerateAudioInput>
+
+const AudioHealthSchema = z.object({
+  ok: z.boolean(),
+  service: z.string(),
+  projectRoot: z.string(),
+  outputDir: z.string(),
+}) satisfies z.ZodType<AudioHealth>
+
+const GenerateAudioResultSchema = z.object({
+  ok: z.literal(true),
+  lessonOutputDir: z.string(),
+  wavPath: z.string(),
+  mp3Path: z.string().nullable(),
+  chunkCount: z.number(),
+  cleanedCharacterCount: z.number(),
+  durationSeconds: z.number(),
+  formattedDuration: z.string(),
+}) satisfies z.ZodType<GenerateAudioResult>
+
+const AudioApiErrorSchema = z.object({
+  ok: z.literal(false),
+  error: z.string(),
+})
+
 function validateGenerateInput(input: unknown): GenerateAudioInput {
-  if (!input || typeof input !== 'object') {
-    throw new Error('Generation input must be an object.')
-  }
-
-  const data = input as Partial<GenerateAudioInput>
-
-  if (!data.text || typeof data.text !== 'string') {
-    throw new Error('Lesson text is required.')
-  }
-
-  if (!data.stem || typeof data.stem !== 'string') {
-    throw new Error('Lesson name is required.')
-  }
-
-  if (data.suffix !== '.md' && data.suffix !== '.txt') {
-    throw new Error('Suffix must be .md or .txt.')
-  }
-
-  if (!data.voice || typeof data.voice !== 'string') {
-    throw new Error('Voice is required.')
-  }
-
-  if (typeof data.speed !== 'number' || Number.isNaN(data.speed) || data.speed <= 0) {
-    throw new Error('Speed must be greater than 0.')
-  }
-
-  if (typeof data.wavOnly !== 'boolean') {
-    throw new Error('wavOnly must be a boolean.')
-  }
-
-  return {
-    text: data.text,
-    stem: data.stem,
-    suffix: data.suffix,
-    voice: data.voice,
-    speed: data.speed,
-    wavOnly: data.wavOnly,
-  }
+  return GenerateAudioInputSchema.parse(input)
 }
 
-async function readAudioResponse<T extends object>(response: Response): Promise<T> {
-  const payload = (await response.json()) as T | AudioApiError
+async function readAudioResponse<T extends object>(
+  response: Response,
+  schema: z.ZodType<T>,
+): Promise<T> {
+  const payload = (await response.json()) as unknown
+  const apiError = AudioApiErrorSchema.safeParse(payload)
 
-  if (!response.ok || ('ok' in payload && payload.ok === false)) {
-    const message = 'error' in payload ? payload.error : `Audio API returned ${response.status}`
-    throw new Error(message)
+  if (!response.ok) {
+    throw new Error(apiError.success ? apiError.data.error : `Audio API returned ${response.status}`)
   }
 
-  return payload as T
+  if (apiError.success) {
+    throw new Error(apiError.data.error)
+  }
+
+  return schema.parse(payload)
 }
 
 export const getAudioHealth = createServerFn({ method: 'GET' }).handler(async () => {
   const response = await fetch(`${getAudioApiUrl()}/health`)
-  return readAudioResponse<AudioHealth>(response)
+  return readAudioResponse(response, AudioHealthSchema)
 })
 
 export const generateAudio = createServerFn({ method: 'POST' })
@@ -81,5 +83,5 @@ export const generateAudio = createServerFn({ method: 'POST' })
       body: JSON.stringify(data),
     })
 
-    return readAudioResponse<GenerateAudioResult>(response)
+    return readAudioResponse(response, GenerateAudioResultSchema)
   })

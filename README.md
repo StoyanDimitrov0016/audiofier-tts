@@ -10,11 +10,14 @@ audio-api/            Python audio-generation API and CLI
   output/             Generated audio, one folder per lesson
   src/                Python implementation
   tests/              Python regression tests
+  package.json        Turborepo scripts for the Python service
   audio.py            CLI entrypoint
   server.py           HTTP server entrypoint
   tts.cmd             Windows CLI launcher
   server.cmd          Windows server launcher
 web/                  TanStack Start UI and server functions
+package.json          Root npm workspace and Turborepo commands
+turbo.json            Shared task configuration
 ```
 
 ## What this project does
@@ -52,6 +55,13 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Install JavaScript dependencies from the repository root:
+
+```powershell
+cd ..
+npm install
+```
+
 When opening the repository root in VS Code, select the Python interpreter at:
 
 ```text
@@ -65,6 +75,31 @@ For MP3 output, install FFmpeg and either:
 - add `ffmpeg.exe` to `PATH`, or
 - keep it in a common location like `C:\Users\<you>\Downloads\ffmpeg\bin\ffmpeg.exe`, or
 - pass `--ffmpeg-path "C:\path\to\ffmpeg.exe"`
+
+## Workspace Commands
+
+Run both local services through Turborepo from the repository root:
+
+```powershell
+npm run dev
+```
+
+That starts the Python audio service and the TanStack Start app in one terminal. You can still run each side separately:
+
+```powershell
+npm run dev:audio
+npm run dev:web
+```
+
+Check the workspace before committing:
+
+```powershell
+npm run typecheck
+npm run test
+npm run build
+```
+
+`typecheck` compiles the Python files and checks the web app. `test` runs the Python regression tests. `build` runs the web production build and the Python compile check.
 
 ## Usage
 
@@ -157,7 +192,15 @@ Invoke-RestMethod http://127.0.0.1:8765/generate -Method Post -ContentType "appl
 
 ## Web app
 
-The TanStack Start app lives in `web/`. Its server functions call the Python audio service, so start the Python server first:
+The TanStack Start app lives in `web/`. Its server functions call the Python audio service.
+
+From the repository root, start both services together:
+
+```powershell
+npm run dev
+```
+
+Or start the Python server first:
 
 ```powershell
 .\audio-api\server.cmd

@@ -13,6 +13,8 @@ audio-api/output/
 .env
 .env.*
 
+node_modules/
+.turbo/
 web/node_modules/
 web/dist/
 web/.vinxi/

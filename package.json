@@ -1,0 +1,20 @@
+{
+  "name": "audiofier-tts",
+  "private": true,
+  "packageManager": "npm@11.3.0",
+  "workspaces": [
+    "audio-api",
+    "web"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:audio": "turbo dev --filter=audiofier-audio-api",
+    "dev:web": "turbo dev --filter=audiofier-web",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test"
+  },
+  "devDependencies": {
+    "turbo": "2.9.6"
+  }
+}
