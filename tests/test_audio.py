@@ -184,7 +184,7 @@ class SynthesisTests(unittest.TestCase):
                 yield None, None, np.array([0.1, 0.2], dtype=np.float32)
                 yield None, None, np.array([0.3], dtype=np.float32)
 
-        fake_module.KPipeline = FakePipeline
+        setattr(fake_module, "KPipeline", FakePipeline)
 
         with patch.dict(sys.modules, {"kokoro": fake_module}):
             wavs = synthesize_chunks(
@@ -197,7 +197,10 @@ class SynthesisTests(unittest.TestCase):
 
         self.assertEqual(len(wavs), 1)
         np.testing.assert_allclose(wavs[0], np.array([0.1, 0.2, 0.3], dtype=np.float32))
-        self.assertEqual(FakePipeline.last_call["split_pattern"], r"\n{2,}")
+        last_call = FakePipeline.last_call
+        self.assertIsNotNone(last_call)
+        assert last_call is not None
+        self.assertEqual(last_call["split_pattern"], r"\n{2,}")
 
 
 if __name__ == "__main__":
