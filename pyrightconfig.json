@@ -1,13 +1,19 @@
 {
   "include": [
-    "audio.py",
-    "server.py",
-    "src",
-    "tests"
+    "audio-api/audio.py",
+    "audio-api/server.py",
+    "audio-api/src",
+    "audio-api/tests"
+  ],
+  "exclude": [
+    "audio-api/.venv",
+    "audio-api/output",
+    "web/node_modules",
+    "web/dist"
   ],
   "extraPaths": [
-    "./src"
+    "./audio-api/src"
   ],
-  "venvPath": ".",
+  "venvPath": "./audio-api",
   "venv": ".venv"
 }

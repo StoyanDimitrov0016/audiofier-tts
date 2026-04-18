@@ -1,4 +1,4 @@
-.venv/
+audio-api/.venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -6,9 +6,15 @@ __pycache__/
 .pyright/
 .test-tmp/
 
-output/
+audio-api/output/
 *.wav
 *.mp3
 
 .env
 .env.*
+
+web/node_modules/
+web/dist/
+web/.vinxi/
+web/.nitro/
+web/.output/

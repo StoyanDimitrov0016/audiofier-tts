@@ -1,19 +1,20 @@
-# Local Kokoro TTS
+# Audiofier TTS
 
-Small local text-to-speech workflow for turning markdown or text lessons into audio with Kokoro on Windows.
+Local text-to-speech tooling with a Python audio-generation service and a TanStack Start web app.
 
 ## Project layout
 
 ```text
-lessons/              Source markdown or text lessons
-output/               Generated audio, one folder per lesson
-src/                  Python implementation
-audio.py              Thin root entrypoint
-server.py             Thin HTTP server entrypoint
-tts.cmd               Easiest Windows launcher
-server.cmd            Easiest Windows server launcher
-tts.ps1               Optional PowerShell launcher
-tests/                Small regression tests for the text/audio pipeline
+audio-api/            Python audio-generation API and CLI
+  lessons/            Source markdown or text lessons
+  output/             Generated audio, one folder per lesson
+  src/                Python implementation
+  tests/              Python regression tests
+  audio.py            CLI entrypoint
+  server.py           HTTP server entrypoint
+  tts.cmd             Windows CLI launcher
+  server.cmd          Windows server launcher
+web/                  TanStack Start UI and server functions
 ```
 
 ## What this project does
@@ -27,9 +28,12 @@ tests/                Small regression tests for the text/audio pipeline
 
 ## Setup
 
+The Python service lives in `audio-api/`.
+
 Create and activate a virtual environment:
 
 ```powershell
+cd .\audio-api
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
@@ -37,6 +41,7 @@ py -3.12 -m venv .venv
 If the `py` launcher cannot find Python, use the installed executable directly:
 
 ```powershell
+cd .\audio-api
 & "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe" -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
@@ -46,6 +51,14 @@ Install dependencies:
 ```powershell
 pip install -r requirements.txt
 ```
+
+When opening the repository root in VS Code, select the Python interpreter at:
+
+```text
+audio-api\.venv\Scripts\python.exe
+```
+
+The root `pyrightconfig.json` also points Pylance at `audio-api/.venv` and `audio-api/src`.
 
 For MP3 output, install FFmpeg and either:
 
@@ -58,16 +71,16 @@ For MP3 output, install FFmpeg and either:
 Use the Windows launcher:
 
 ```powershell
-.\tts.cmd .\lessons\fundamentals.md
+.\audio-api\tts.cmd .\lessons\fundamentals.md
 ```
 
 For a quick local test, use the included sample lesson:
 
 ```powershell
-.\tts.cmd .\lessons\sample.md --wav-only
+.\audio-api\tts.cmd .\lessons\sample.md --wav-only
 ```
 
-Relative lesson paths are resolved from your current terminal directory first. If that file does not exist, the app falls back to the project folder, so `.\tts.cmd lessons\fundamentals.md` works even when the launcher is called from another location. Relative output folders are created under the project folder by default.
+Relative lesson paths are resolved from your current terminal directory first. If that file does not exist, the app falls back to the `audio-api/` folder, so `.\audio-api\tts.cmd lessons\sample.md --wav-only` works from the repo root. Relative output folders are created under `audio-api/` by default.
 
 That single command now creates both:
 
@@ -77,25 +90,25 @@ That single command now creates both:
 Run the Python script directly:
 
 ```powershell
-.\.venv\Scripts\python.exe .\audio.py .\lessons\fundamentals.md
+.\audio-api\.venv\Scripts\python.exe .\audio-api\audio.py .\audio-api\lessons\fundamentals.md
 ```
 
 Generate only WAV:
 
 ```powershell
-.\tts.cmd .\lessons\fundamentals.md --wav-only
+.\audio-api\tts.cmd .\lessons\fundamentals.md --wav-only
 ```
 
 Keep intermediate chunk files:
 
 ```powershell
-.\tts.cmd .\lessons\fundamentals.md --keep-chunks
+.\audio-api\tts.cmd .\lessons\fundamentals.md --keep-chunks
 ```
 
 Change voice and speed:
 
 ```powershell
-.\tts.cmd .\lessons\fundamentals.md --voice af_bella --speed 0.96
+.\audio-api\tts.cmd .\lessons\fundamentals.md --voice af_bella --speed 0.96
 ```
 
 ## HTTP server
@@ -103,7 +116,7 @@ Change voice and speed:
 Run the isolated audio generator service:
 
 ```powershell
-.\server.cmd
+.\audio-api\server.cmd
 ```
 
 By default it listens only on your machine:
@@ -140,6 +153,30 @@ $body = @{
 } | ConvertTo-Json
 
 Invoke-RestMethod http://127.0.0.1:8765/generate -Method Post -ContentType "application/json" -Body $body
+```
+
+## Web app
+
+The TanStack Start app lives in `web/`. Its server functions call the Python audio service, so start the Python server first:
+
+```powershell
+.\audio-api\server.cmd
+```
+
+In a second terminal:
+
+```powershell
+cd .\web
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+If the audio service uses another URL, set `AUDIO_API_URL` before starting the web app:
+
+```powershell
+$env:AUDIO_API_URL = "http://127.0.0.1:8765"
+npm run dev
 ```
 
 ## Outputs

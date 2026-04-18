@@ -1,0 +1,17 @@
+{
+  "include": [
+    "audio.py",
+    "server.py",
+    "src",
+    "tests"
+  ],
+  "exclude": [
+    ".venv",
+    "output"
+  ],
+  "extraPaths": [
+    "./src"
+  ],
+  "venvPath": ".",
+  "venv": ".venv"
+}
