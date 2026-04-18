@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 from types import ModuleType
 import sys
-import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -15,7 +14,9 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from audio_generation import resolve_ffmpeg, synthesize_chunks
+from audio_server import ServerConfig, generate_from_payload, options_from_payload
 from cli import build_output_dir, resolve_input_path, resolve_output_dir
+from generation import GenerationResult, sanitize_stem
 from text_processing import make_chunks, merge_small_chunks, prepare_text_for_tts, strip_markdown
 
 
@@ -83,34 +84,70 @@ class OutputLayoutTests(unittest.TestCase):
         self.assertEqual(output_dir, Path("output/fundamentals"))
 
     def test_resolve_input_path_prefers_existing_caller_relative_file(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            temp_path = Path(temp)
-            input_path = temp_path / "caller.md"
-            input_path.write_text("hello", encoding="utf-8")
+        expected = (ROOT / "lessons" / "sample.md").resolve()
+        previous_cwd = Path.cwd()
+        try:
+            os.chdir(ROOT)
+            resolved = resolve_input_path("lessons/sample.md", project_root=Path("unused"))
+        finally:
+            os.chdir(previous_cwd)
 
-            previous_cwd = Path.cwd()
-            try:
-                os.chdir(temp_path)
-                resolved = resolve_input_path("caller.md", project_root=Path("unused"))
-            finally:
-                os.chdir(previous_cwd)
-
-        self.assertEqual(resolved, input_path)
+        self.assertEqual(resolved, expected)
 
     def test_resolve_input_path_falls_back_to_project_root(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            project_root = Path(temp)
-            expected = (project_root / "lessons" / "lesson.md").resolve()
-            resolved = resolve_input_path("lessons/lesson.md", project_root=project_root)
+        expected = (ROOT / "lessons" / "missing.md").resolve()
+        resolved = resolve_input_path("lessons/missing.md", project_root=ROOT)
 
         self.assertEqual(resolved, expected)
 
     def test_resolve_output_dir_keeps_relative_output_under_project_root(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            project_root = Path(temp)
-            resolved = resolve_output_dir("output", project_root=project_root)
+        resolved = resolve_output_dir("output", project_root=ROOT)
 
-        self.assertEqual(resolved, (project_root / "output").resolve())
+        self.assertEqual(resolved, (ROOT / "output").resolve())
+
+    def test_sanitize_stem_keeps_output_names_path_safe(self) -> None:
+        self.assertEqual(sanitize_stem("../My Lesson: 01"), "My-Lesson-01")
+        self.assertEqual(sanitize_stem("   "), "lesson")
+
+
+class ServerRequestTests(unittest.TestCase):
+    def test_options_from_payload_uses_server_output_dir_by_default(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        options = options_from_payload({"wavOnly": True, "speed": 1.05}, config)
+
+        self.assertEqual(options.output_dir, output_dir)
+        self.assertTrue(options.wav_only)
+        self.assertEqual(options.speed, 1.05)
+
+    def test_generate_from_payload_accepts_raw_text(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        expected = GenerationResult(
+            lesson_output_dir=output_dir / "sample",
+            wav_path=output_dir / "sample" / "sample.wav",
+            mp3_path=None,
+            chunk_count=1,
+            cleaned_character_count=12,
+            duration_seconds=1.5,
+        )
+
+        with patch("audio_server.generate_audio_from_text", return_value=expected) as generate:
+            result = generate_from_payload(
+                {
+                    "text": "# Hello",
+                    "stem": "sample",
+                    "suffix": ".md",
+                    "wavOnly": True,
+                },
+                config,
+            )
+
+        self.assertEqual(result, expected)
+        generate.assert_called_once()
+        self.assertEqual(generate.call_args.kwargs["text"], "# Hello")
+        self.assertEqual(generate.call_args.kwargs["stem"], "sample")
+        self.assertTrue(generate.call_args.kwargs["options"].wav_only)
 
 
 class FfmpegResolutionTests(unittest.TestCase):

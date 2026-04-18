@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 from text_processing import make_chunks, prepare_text_for_tts
 
@@ -54,6 +55,15 @@ def validate_input_file(path: Path) -> None:
         raise ValueError("Input file must be .md or .txt")
 
 
+def validate_text_suffix(suffix: str) -> str:
+    normalized = suffix.lower()
+    if not normalized.startswith("."):
+        normalized = f".{normalized}"
+    if normalized not in {".md", ".txt"}:
+        raise ValueError("Text suffix must be .md or .txt")
+    return normalized
+
+
 def validate_generation_options(options: GenerationOptions) -> None:
     if options.speed <= 0:
         raise ValueError("speed must be greater than 0.")
@@ -67,7 +77,17 @@ def build_output_dir(base_output_dir: Path, input_path: Path) -> Path:
     return base_output_dir / input_path.stem
 
 
-def generate_audio(input_path: Path, options: GenerationOptions) -> GenerationResult:
+def sanitize_stem(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
+    cleaned = cleaned.strip(".-_")
+    return cleaned[:80] or "lesson"
+
+
+def generate_audio_from_cleaned_text(
+    cleaned: str,
+    stem: str,
+    options: GenerationOptions,
+) -> GenerationResult:
     from audio_generation import (
         convert_wav_to_mp3,
         resolve_ffmpeg,
@@ -79,18 +99,16 @@ def generate_audio(input_path: Path, options: GenerationOptions) -> GenerationRe
 
     suppress_known_runtime_noise()
     validate_generation_options(options)
-    validate_input_file(input_path)
 
-    raw = read_text(input_path)
-    cleaned = prepare_text_for_tts(raw, input_path.suffix)
     if not cleaned:
-        raise ValueError("The input file is empty after cleaning.")
+        raise ValueError("The input text is empty after cleaning.")
 
     chunks = make_chunks(cleaned, max_chars=options.max_chars)
     if not chunks:
         raise ValueError("No chunks were created from the input text.")
 
-    lesson_output_dir = build_output_dir(options.output_dir, input_path)
+    output_stem = sanitize_stem(stem)
+    lesson_output_dir = options.output_dir / output_stem
 
     wavs = synthesize_chunks(
         chunks=chunks,
@@ -101,19 +119,19 @@ def generate_audio(input_path: Path, options: GenerationOptions) -> GenerationRe
     )
 
     if options.keep_chunks:
-        save_chunk_wavs(wavs, lesson_output_dir / "chunks", input_path.stem)
+        save_chunk_wavs(wavs, lesson_output_dir / "chunks", output_stem)
 
     final_wav, duration_seconds = save_final_wav(
         wavs=wavs,
         output_dir=lesson_output_dir,
-        stem=input_path.stem,
+        stem=output_stem,
         pause_ms=options.pause_ms,
     )
 
     final_mp3: Path | None = None
     if not options.wav_only:
         ffmpeg_executable = resolve_ffmpeg(options.ffmpeg_path)
-        final_mp3 = lesson_output_dir / f"{input_path.stem}.mp3"
+        final_mp3 = lesson_output_dir / f"{output_stem}.mp3"
         convert_wav_to_mp3(
             wav_path=final_wav,
             mp3_path=final_mp3,
@@ -129,3 +147,23 @@ def generate_audio(input_path: Path, options: GenerationOptions) -> GenerationRe
         cleaned_character_count=len(cleaned),
         duration_seconds=duration_seconds,
     )
+
+
+def generate_audio_from_text(
+    text: str,
+    stem: str,
+    suffix: str,
+    options: GenerationOptions,
+) -> GenerationResult:
+    normalized_suffix = validate_text_suffix(suffix)
+    cleaned = prepare_text_for_tts(text.lstrip("\ufeff"), normalized_suffix)
+    return generate_audio_from_cleaned_text(cleaned, stem, options)
+
+
+def generate_audio(input_path: Path, options: GenerationOptions) -> GenerationResult:
+    validate_generation_options(options)
+    validate_input_file(input_path)
+
+    raw = read_text(input_path)
+    cleaned = prepare_text_for_tts(raw, input_path.suffix)
+    return generate_audio_from_cleaned_text(cleaned, input_path.stem, options)

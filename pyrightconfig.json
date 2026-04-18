@@ -1,6 +1,7 @@
 {
   "include": [
     "audio.py",
+    "server.py",
     "src",
     "tests"
   ],

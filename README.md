@@ -9,7 +9,9 @@ lessons/              Source markdown or text lessons
 output/               Generated audio, one folder per lesson
 src/                  Python implementation
 audio.py              Thin root entrypoint
+server.py             Thin HTTP server entrypoint
 tts.cmd               Easiest Windows launcher
+server.cmd            Easiest Windows server launcher
 tts.ps1               Optional PowerShell launcher
 tests/                Small regression tests for the text/audio pipeline
 ```
@@ -94,6 +96,50 @@ Change voice and speed:
 
 ```powershell
 .\tts.cmd .\lessons\fundamentals.md --voice af_bella --speed 0.96
+```
+
+## HTTP server
+
+Run the isolated audio generator service:
+
+```powershell
+.\server.cmd
+```
+
+By default it listens only on your machine:
+
+```text
+http://127.0.0.1:8765
+```
+
+Check that the service is alive:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8765/health
+```
+
+Generate from an existing lesson file:
+
+```powershell
+$body = @{
+  inputPath = "lessons/sample.md"
+  wavOnly = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod http://127.0.0.1:8765/generate -Method Post -ContentType "application/json" -Body $body
+```
+
+Generate from raw text, which is the path the future web app can use:
+
+```powershell
+$body = @{
+  text = "# Web Lesson`n`nThis lesson came from an HTTP request."
+  stem = "web-lesson"
+  suffix = ".md"
+  wavOnly = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod http://127.0.0.1:8765/generate -Method Post -ContentType "application/json" -Body $body
 ```
 
 ## Outputs

@@ -1,0 +1,254 @@
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+from pathlib import Path
+from typing import Any
+
+from generation import (
+    DEFAULT_LANG_CODE,
+    DEFAULT_REPO_ID,
+    DEFAULT_VOICE,
+    GenerationOptions,
+    GenerationResult,
+    generate_audio,
+    generate_audio_from_text,
+    validate_generation_options,
+)
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+MAX_REQUEST_BYTES = 2_000_000
+
+
+@dataclass(frozen=True)
+class ServerConfig:
+    host: str
+    port: int
+    output_dir: Path
+
+
+class ApiError(Exception):
+    def __init__(self, status: HTTPStatus, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+        self.message = message
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run the local Audiofier TTS HTTP service.")
+    parser.add_argument("--host", default="127.0.0.1", help="Host to bind. Defaults to local-only.")
+    parser.add_argument("--port", type=int, default=8765, help="Port to listen on.")
+    parser.add_argument("--output-dir", default="output", help="Base folder for generated audio output.")
+    return parser.parse_args()
+
+
+def resolve_output_dir(value: str, project_root: Path = PROJECT_ROOT) -> Path:
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+    return (project_root / path).resolve()
+
+
+def resolve_input_path(value: str, project_root: Path = PROJECT_ROOT) -> Path:
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+    return (project_root / path).resolve()
+
+
+def get_bool(payload: dict[str, Any], key: str, default: bool) -> bool:
+    value = payload.get(key, default)
+    if isinstance(value, bool):
+        return value
+    raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a boolean.")
+
+
+def get_int(payload: dict[str, Any], key: str, default: int) -> int:
+    value = payload.get(key, default)
+    if isinstance(value, bool):
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be an integer.")
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be an integer.") from None
+
+
+def get_float(payload: dict[str, Any], key: str, default: float) -> float:
+    value = payload.get(key, default)
+    if isinstance(value, bool):
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a number.")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a number.") from None
+
+
+def get_optional_string(payload: dict[str, Any], key: str) -> str | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a string.")
+
+
+def get_string(payload: dict[str, Any], key: str, default: str | None = None) -> str:
+    value = payload.get(key, default)
+    if isinstance(value, str):
+        return value
+    raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a string.")
+
+
+def options_from_payload(payload: dict[str, Any], config: ServerConfig) -> GenerationOptions:
+    output_dir_value = get_string(payload, "outputDir", str(config.output_dir))
+    options = GenerationOptions(
+        output_dir=resolve_output_dir(output_dir_value),
+        voice=get_string(payload, "voice", DEFAULT_VOICE),
+        speed=get_float(payload, "speed", 1.0),
+        lang_code=get_string(payload, "langCode", DEFAULT_LANG_CODE),
+        repo_id=get_string(payload, "repoId", DEFAULT_REPO_ID),
+        max_chars=get_int(payload, "maxChars", 1200),
+        pause_ms=get_int(payload, "pauseMs", 300),
+        keep_chunks=get_bool(payload, "keepChunks", False),
+        wav_only=get_bool(payload, "wavOnly", False),
+        ffmpeg_path=get_optional_string(payload, "ffmpegPath"),
+        mp3_bitrate=get_string(payload, "mp3Bitrate", "96k"),
+    )
+    validate_generation_options(options)
+    return options
+
+
+def display_path(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(resolved)
+
+
+def result_to_payload(result: GenerationResult) -> dict[str, Any]:
+    return {
+        "ok": True,
+        "lessonOutputDir": display_path(result.lesson_output_dir),
+        "wavPath": display_path(result.wav_path),
+        "mp3Path": display_path(result.mp3_path),
+        "chunkCount": result.chunk_count,
+        "cleanedCharacterCount": result.cleaned_character_count,
+        "durationSeconds": result.duration_seconds,
+        "formattedDuration": result.formatted_duration,
+    }
+
+
+def generate_from_payload(payload: dict[str, Any], config: ServerConfig) -> GenerationResult:
+    options = options_from_payload(payload, config)
+    text = get_optional_string(payload, "text")
+    input_path = get_optional_string(payload, "inputPath")
+
+    if text is not None and input_path is not None:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Use either text or inputPath, not both.")
+
+    if text is not None:
+        stem = get_string(payload, "stem", "lesson")
+        suffix = get_string(payload, "suffix", ".md")
+        return generate_audio_from_text(text=text, stem=stem, suffix=suffix, options=options)
+
+    if input_path is not None:
+        return generate_audio(resolve_input_path(input_path), options)
+
+    raise ApiError(HTTPStatus.BAD_REQUEST, "Request must include text or inputPath.")
+
+
+def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
+    class AudioRequestHandler(BaseHTTPRequestHandler):
+        server_version = "AudiofierTTS/1.0"
+
+        def do_GET(self) -> None:
+            if self.path == "/health":
+                self.write_json(
+                    HTTPStatus.OK,
+                    {
+                        "ok": True,
+                        "service": "audiofier-tts",
+                        "projectRoot": str(PROJECT_ROOT),
+                        "outputDir": display_path(config.output_dir),
+                    },
+                )
+                return
+
+            self.write_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "Not found."})
+
+        def do_POST(self) -> None:
+            if self.path != "/generate":
+                self.write_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "Not found."})
+                return
+
+            try:
+                payload = self.read_json()
+                result = generate_from_payload(payload, config)
+                self.write_json(HTTPStatus.OK, result_to_payload(result))
+            except ApiError as error:
+                self.write_json(error.status, {"ok": False, "error": error.message})
+            except (FileNotFoundError, ValueError) as error:
+                self.write_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(error)})
+            except Exception as error:
+                self.write_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(error)})
+
+        def read_json(self) -> dict[str, Any]:
+            content_length = self.headers.get("Content-Length")
+            if content_length is None:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "Missing Content-Length header.")
+
+            try:
+                size = int(content_length)
+            except ValueError:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "Invalid Content-Length header.") from None
+
+            if size > MAX_REQUEST_BYTES:
+                raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "Request body is too large.")
+
+            raw = self.rfile.read(size)
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except json.JSONDecodeError as error:
+                raise ApiError(HTTPStatus.BAD_REQUEST, f"Invalid JSON: {error.msg}.") from None
+
+            if not isinstance(payload, dict):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "Request body must be a JSON object.")
+
+            return payload
+
+        def write_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
+            body = json.dumps(payload, indent=2).encode("utf-8")
+            self.send_response(status.value)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: Any) -> None:
+            print(f"{self.address_string()} - {format % args}")
+
+    return AudioRequestHandler
+
+
+def run_server(config: ServerConfig) -> None:
+    handler = make_handler(config)
+    server = ThreadingHTTPServer((config.host, config.port), handler)
+    print(f"Audiofier TTS server listening on http://{config.host}:{config.port}")
+    print(f"Output directory: {config.output_dir}")
+    server.serve_forever()
+
+
+def main() -> None:
+    args = parse_args()
+    config = ServerConfig(
+        host=args.host,
+        port=args.port,
+        output_dir=resolve_output_dir(args.output_dir),
+    )
+    run_server(config)
