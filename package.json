@@ -1,7 +1,11 @@
 {
   "name": "audiofier-tts",
   "private": true,
-  "packageManager": "npm@11.3.0",
+  "packageManager": "npm@11.12.1",
+  "engines": {
+    "node": "24.x",
+    "npm": "11.x"
+  },
   "workspaces": [
     "audio-api",
     "web"
@@ -10,6 +14,7 @@
     "dev": "turbo dev --env-mode=loose",
     "dev:audio": "turbo dev --filter=audiofier-audio-api --env-mode=loose",
     "dev:web": "turbo dev --filter=audiofier-web --env-mode=loose",
+    "setup:audio": "npm run setup:venv -w audiofier-audio-api",
     "build": "turbo build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

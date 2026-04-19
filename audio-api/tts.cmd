@@ -7,7 +7,7 @@ set "SCRIPT=%ROOT%audio.py"
 
 if not exist "%PYTHON%" (
     echo Python virtual environment not found at "%PYTHON%".
-    echo Create it first and install requirements.
+    echo Run "npm run setup:audio" from the repository root.
     exit /b 1
 )
 

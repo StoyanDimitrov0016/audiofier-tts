@@ -13,7 +13,7 @@ $python = Join-Path $root ".venv\Scripts\python.exe"
 $script = Join-Path $root "audio.py"
 
 if (-not (Test-Path $python)) {
-    throw "Python virtual environment not found at $python. Create it first and install requirements."
+    throw "Python virtual environment not found at $python. Run 'npm run setup:audio' from the repository root."
 }
 
 $arguments = @($script, $InputPath) + $ExtraArgs

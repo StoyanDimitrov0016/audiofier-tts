@@ -2,11 +2,13 @@
   "name": "audiofier-audio-api",
   "private": true,
   "scripts": {
-    "dev": ".\\.venv\\Scripts\\python.exe server.py",
-    "start": ".\\.venv\\Scripts\\python.exe server.py",
+    "setup:venv": "node ./scripts/setup-venv.mjs",
+    "dev": "node ./scripts/python.mjs server.py",
+    "start": "node ./scripts/python.mjs server.py",
     "build": "npm run typecheck",
-    "typecheck": ".\\.venv\\Scripts\\python.exe -m py_compile audio.py server.py src\\audio_generation.py src\\audio_server.py src\\cli.py src\\generation.py src\\text_processing.py",
-    "test": ".\\.venv\\Scripts\\python.exe -m unittest discover -s tests",
-    "generate:sample": ".\\.venv\\Scripts\\python.exe audio.py .\\lessons\\sample.md --wav-only"
+    "typecheck": "node ./scripts/python.mjs -m py_compile audio.py server.py src/audio_generation.py src/audio_server.py src/cli.py src/generation.py src/text_processing.py",
+    "test": "node ./scripts/python.mjs -m unittest discover -s tests",
+    "generate": "node ./scripts/python.mjs audio.py",
+    "generate:sample": "node ./scripts/python.mjs audio.py ./lessons/sample.md --wav-only"
   }
 }

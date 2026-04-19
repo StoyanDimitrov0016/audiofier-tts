@@ -34,14 +34,84 @@ turbo.json            Shared task configuration
 
 ## Setup
 
-The Python service lives in `audio-api/`.
+Use Node through nvm and npm for this repository. The root `package.json` and `package-lock.json` are the source of truth for JavaScript dependencies.
 
-Create and activate a virtual environment:
+Install JavaScript dependencies from the repository root:
+
+```bash
+npm install
+```
+
+The Python service lives in `audio-api/` and uses a disposable local virtual environment at:
+
+```text
+audio-api/.venv
+```
+
+Do not copy this folder between machines or repo locations. If the repo moves, delete `audio-api/.venv` and recreate it.
+
+The shortest setup path from the repository root is:
+
+```bash
+npm run setup:audio
+```
+
+That command creates `audio-api/.venv` when it is missing and installs `audio-api/requirements.txt`.
+
+### Git Bash Setup
+
+From the repository root:
+
+```bash
+npm install
+npm run setup:audio
+npm run dev
+```
+
+To recreate a broken or moved Python venv in Git Bash:
+
+```bash
+rm -rf audio-api/.venv
+npm run setup:audio
+```
+
+Manual Git Bash setup is also fine:
+
+```bash
+cd audio-api
+py -3.12 -m venv .venv
+source .venv/Scripts/activate
+python -m pip install -r requirements.txt
+deactivate
+cd ..
+```
+
+### PowerShell Setup
+
+From the repository root:
+
+```powershell
+npm install
+npm run setup:audio
+npm run dev
+```
+
+To recreate a broken or moved Python venv in PowerShell:
+
+```powershell
+Remove-Item -LiteralPath .\audio-api\.venv -Recurse -Force
+npm run setup:audio
+```
+
+Manual PowerShell setup is also fine:
 
 ```powershell
 cd .\audio-api
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+deactivate
+cd ..
 ```
 
 If the `py` launcher cannot find Python, use the installed executable directly:
@@ -50,19 +120,9 @@ If the `py` launcher cannot find Python, use the installed executable directly:
 cd .\audio-api
 & "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe" -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
-Install JavaScript dependencies from the repository root:
-
-```powershell
+python -m pip install -r requirements.txt
+deactivate
 cd ..
-npm install
 ```
 
 When opening the repository root in VS Code, select the Python interpreter at:
@@ -148,7 +208,19 @@ Group and lesson forms use TanStack Form with Zod schemas. Lesson previews rende
 
 ## Usage
 
-Use the Windows launcher:
+Use the shell-neutral npm script from the repository root:
+
+```bash
+npm run generate -w audiofier-audio-api -- ./lessons/fundamentals.md
+```
+
+For a quick local test, use the included sample lesson:
+
+```bash
+npm run generate:sample -w audiofier-audio-api
+```
+
+PowerShell and cmd can also use the Windows launcher:
 
 ```powershell
 .\audio-api\tts.cmd .\lessons\fundamentals.md
@@ -167,7 +239,7 @@ That single command now creates both:
 - `output/fundamentals/fundamentals.wav`
 - `output/fundamentals/fundamentals.mp3`
 
-Run the Python script directly:
+Run the Python script directly in PowerShell:
 
 ```powershell
 .\audio-api\.venv\Scripts\python.exe .\audio-api\audio.py .\audio-api\lessons\fundamentals.md
@@ -175,25 +247,31 @@ Run the Python script directly:
 
 Generate only WAV:
 
-```powershell
-.\audio-api\tts.cmd .\lessons\fundamentals.md --wav-only
+```bash
+npm run generate -w audiofier-audio-api -- ./lessons/fundamentals.md --wav-only
 ```
 
 Keep intermediate chunk files:
 
-```powershell
-.\audio-api\tts.cmd .\lessons\fundamentals.md --keep-chunks
+```bash
+npm run generate -w audiofier-audio-api -- ./lessons/fundamentals.md --keep-chunks
 ```
 
 Change voice and speed:
 
-```powershell
-.\audio-api\tts.cmd .\lessons\fundamentals.md --voice af_bella --speed 0.96
+```bash
+npm run generate -w audiofier-audio-api -- ./lessons/fundamentals.md --voice af_bella --speed 0.96
 ```
 
 ## HTTP server
 
 Run the isolated audio generator service:
+
+```bash
+npm run dev:audio
+```
+
+PowerShell and cmd can also use the Windows launcher:
 
 ```powershell
 .\audio-api\server.cmd

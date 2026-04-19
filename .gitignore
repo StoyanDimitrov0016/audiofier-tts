@@ -1,10 +1,18 @@
-audio-api/.venv/
+.venv/
+**/.venv/
 __pycache__/
+**/__pycache__/
 *.py[cod]
 .pytest_cache/
+**/.pytest_cache/
 .mypy_cache/
+**/.mypy_cache/
 .pyright/
+**/.pyright/
+.ruff_cache/
+**/.ruff_cache/
 .test-tmp/
+**/.test-tmp/
 
 audio-api/output/
 /output/
@@ -17,9 +25,13 @@ audio-api/output/
 .env.*
 
 node_modules/
+**/node_modules/
 .turbo/
+**/.turbo/
 web/node_modules/
 web/dist/
+**/dist/
+web/.tanstack/tmp/
 web/.vinxi/
 web/.nitro/
 web/.output/
