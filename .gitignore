@@ -7,6 +7,9 @@ __pycache__/
 .test-tmp/
 
 audio-api/output/
+/output/
+/storage/generated/*
+!/storage/generated/.gitkeep
 *.wav
 *.mp3
 
