@@ -1,22 +1,40 @@
 import { useState } from "react";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 
 import LessonEditor, { type LessonEditorValues } from "../components/lesson-editor";
+import RouteError from "../components/route-error";
+import RouteNotFound from "../components/route-not-found";
+import RoutePending from "../components/route-pending";
 import { createChapter, getAudioGroupDetails } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/new")({
-  loader: async ({ params }) =>
-    getAudioGroupDetails({
+  loader: async ({ params }) => {
+    const details = await getAudioGroupDetails({
       data: {
         groupId: params.groupId,
       },
-    }),
+    });
+
+    if (!details) {
+      throw notFound({
+        data: {
+          message: "That audio group does not exist.",
+        },
+      });
+    }
+
+    return details;
+  },
+  pendingComponent: RoutePending,
+  errorComponent: RouteError,
+  notFoundComponent: RouteNotFound,
   component: NewLessonPage,
 });
 
 function NewLessonPage() {
   const { group, chapters } = Route.useLoaderData();
   const navigate = useNavigate();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +51,7 @@ function NewLessonPage() {
           markdown: values.markdown,
         },
       });
+      await router.invalidate({ sync: true });
       await navigate({
         to: "/groups/$groupId/lessons/$chapterId",
         params: {
@@ -48,32 +67,30 @@ function NewLessonPage() {
   }
 
   return (
-    <main className="app-shell">
-      <section className="workspace">
-        <Link className="text-link" to="/groups/$groupId" params={{ groupId: group.id }}>
-          Back to group
-        </Link>
-        <header className="page-header">
-          <div>
-            <p className="eyebrow">New lesson</p>
-            <h1>{group.title}</h1>
-          </div>
-        </header>
+    <section className="workspace">
+      <Link className="text-link" to="/groups/$groupId" params={{ groupId: group.id }}>
+        Back to group
+      </Link>
+      <header className="page-header">
+        <div>
+          <p className="eyebrow">New lesson</p>
+          <h1>{group.title}</h1>
+        </div>
+      </header>
 
-        <LessonEditor
-          initialValues={{
-            title: "",
-            order: chapters.length + 1,
-            markdown: "# New Lesson\n\n",
-          }}
-          submitLabel="Create lesson"
-          pendingLabel="Creating..."
-          isSubmitting={isSubmitting}
-          onSubmit={submitLesson}
-        />
+      <LessonEditor
+        initialValues={{
+          title: "",
+          order: chapters.length + 1,
+          markdown: "# New Lesson\n\n",
+        }}
+        submitLabel="Create lesson"
+        pendingLabel="Creating..."
+        isSubmitting={isSubmitting}
+        onSubmit={submitLesson}
+      />
 
-        {error ? <p className="status-banner error-text">{error}</p> : null}
-      </section>
-    </main>
+      {error ? <p className="status-banner error-text">{error}</p> : null}
+    </section>
   );
 }

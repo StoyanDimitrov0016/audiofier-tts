@@ -11,11 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GroupsIndexRouteImport } from './routes/groups.index'
 import { Route as GroupsNewRouteImport } from './routes/groups.new'
 import { Route as GroupsGroupIdRouteImport } from './routes/groups.$groupId'
+import { Route as GroupsGroupIdIndexRouteImport } from './routes/groups.$groupId.index'
 import { Route as GroupsGroupIdEditRouteImport } from './routes/groups.$groupId.edit'
 import { Route as GroupsGroupIdLessonsNewRouteImport } from './routes/groups.$groupId.lessons.new'
 import { Route as GroupsGroupIdLessonsChapterIdRouteImport } from './routes/groups.$groupId.lessons.$chapterId'
+import { Route as GroupsGroupIdLessonsChapterIdIndexRouteImport } from './routes/groups.$groupId.lessons.$chapterId.index'
 import { Route as GroupsGroupIdLessonsChapterIdEditRouteImport } from './routes/groups.$groupId.lessons.$chapterId.edit'
 
 const GroupsRoute = GroupsRouteImport.update({
@@ -28,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GroupsIndexRoute = GroupsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GroupsRoute,
+} as any)
 const GroupsNewRoute = GroupsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -37,6 +45,11 @@ const GroupsGroupIdRoute = GroupsGroupIdRouteImport.update({
   id: '/$groupId',
   path: '/$groupId',
   getParentRoute: () => GroupsRoute,
+} as any)
+const GroupsGroupIdIndexRoute = GroupsGroupIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GroupsGroupIdRoute,
 } as any)
 const GroupsGroupIdEditRoute = GroupsGroupIdEditRouteImport.update({
   id: '/edit',
@@ -54,6 +67,12 @@ const GroupsGroupIdLessonsChapterIdRoute =
     path: '/lessons/$chapterId',
     getParentRoute: () => GroupsGroupIdRoute,
   } as any)
+const GroupsGroupIdLessonsChapterIdIndexRoute =
+  GroupsGroupIdLessonsChapterIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => GroupsGroupIdLessonsChapterIdRoute,
+  } as any)
 const GroupsGroupIdLessonsChapterIdEditRoute =
   GroupsGroupIdLessonsChapterIdEditRouteImport.update({
     id: '/edit',
@@ -66,20 +85,23 @@ export interface FileRoutesByFullPath {
   '/groups': typeof GroupsRouteWithChildren
   '/groups/$groupId': typeof GroupsGroupIdRouteWithChildren
   '/groups/new': typeof GroupsNewRoute
+  '/groups/': typeof GroupsIndexRoute
   '/groups/$groupId/edit': typeof GroupsGroupIdEditRoute
+  '/groups/$groupId/': typeof GroupsGroupIdIndexRoute
   '/groups/$groupId/lessons/$chapterId': typeof GroupsGroupIdLessonsChapterIdRouteWithChildren
   '/groups/$groupId/lessons/new': typeof GroupsGroupIdLessonsNewRoute
   '/groups/$groupId/lessons/$chapterId/edit': typeof GroupsGroupIdLessonsChapterIdEditRoute
+  '/groups/$groupId/lessons/$chapterId/': typeof GroupsGroupIdLessonsChapterIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/groups': typeof GroupsRouteWithChildren
-  '/groups/$groupId': typeof GroupsGroupIdRouteWithChildren
   '/groups/new': typeof GroupsNewRoute
+  '/groups': typeof GroupsIndexRoute
   '/groups/$groupId/edit': typeof GroupsGroupIdEditRoute
-  '/groups/$groupId/lessons/$chapterId': typeof GroupsGroupIdLessonsChapterIdRouteWithChildren
+  '/groups/$groupId': typeof GroupsGroupIdIndexRoute
   '/groups/$groupId/lessons/new': typeof GroupsGroupIdLessonsNewRoute
   '/groups/$groupId/lessons/$chapterId/edit': typeof GroupsGroupIdLessonsChapterIdEditRoute
+  '/groups/$groupId/lessons/$chapterId': typeof GroupsGroupIdLessonsChapterIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,10 +109,13 @@ export interface FileRoutesById {
   '/groups': typeof GroupsRouteWithChildren
   '/groups/$groupId': typeof GroupsGroupIdRouteWithChildren
   '/groups/new': typeof GroupsNewRoute
+  '/groups/': typeof GroupsIndexRoute
   '/groups/$groupId/edit': typeof GroupsGroupIdEditRoute
+  '/groups/$groupId/': typeof GroupsGroupIdIndexRoute
   '/groups/$groupId/lessons/$chapterId': typeof GroupsGroupIdLessonsChapterIdRouteWithChildren
   '/groups/$groupId/lessons/new': typeof GroupsGroupIdLessonsNewRoute
   '/groups/$groupId/lessons/$chapterId/edit': typeof GroupsGroupIdLessonsChapterIdEditRoute
+  '/groups/$groupId/lessons/$chapterId/': typeof GroupsGroupIdLessonsChapterIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -99,30 +124,36 @@ export interface FileRouteTypes {
     | '/groups'
     | '/groups/$groupId'
     | '/groups/new'
+    | '/groups/'
     | '/groups/$groupId/edit'
+    | '/groups/$groupId/'
     | '/groups/$groupId/lessons/$chapterId'
     | '/groups/$groupId/lessons/new'
     | '/groups/$groupId/lessons/$chapterId/edit'
+    | '/groups/$groupId/lessons/$chapterId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/groups'
-    | '/groups/$groupId'
     | '/groups/new'
+    | '/groups'
     | '/groups/$groupId/edit'
-    | '/groups/$groupId/lessons/$chapterId'
+    | '/groups/$groupId'
     | '/groups/$groupId/lessons/new'
     | '/groups/$groupId/lessons/$chapterId/edit'
+    | '/groups/$groupId/lessons/$chapterId'
   id:
     | '__root__'
     | '/'
     | '/groups'
     | '/groups/$groupId'
     | '/groups/new'
+    | '/groups/'
     | '/groups/$groupId/edit'
+    | '/groups/$groupId/'
     | '/groups/$groupId/lessons/$chapterId'
     | '/groups/$groupId/lessons/new'
     | '/groups/$groupId/lessons/$chapterId/edit'
+    | '/groups/$groupId/lessons/$chapterId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -146,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/groups/': {
+      id: '/groups/'
+      path: '/'
+      fullPath: '/groups/'
+      preLoaderRoute: typeof GroupsIndexRouteImport
+      parentRoute: typeof GroupsRoute
+    }
     '/groups/new': {
       id: '/groups/new'
       path: '/new'
@@ -159,6 +197,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/groups/$groupId'
       preLoaderRoute: typeof GroupsGroupIdRouteImport
       parentRoute: typeof GroupsRoute
+    }
+    '/groups/$groupId/': {
+      id: '/groups/$groupId/'
+      path: '/'
+      fullPath: '/groups/$groupId/'
+      preLoaderRoute: typeof GroupsGroupIdIndexRouteImport
+      parentRoute: typeof GroupsGroupIdRoute
     }
     '/groups/$groupId/edit': {
       id: '/groups/$groupId/edit'
@@ -181,6 +226,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GroupsGroupIdLessonsChapterIdRouteImport
       parentRoute: typeof GroupsGroupIdRoute
     }
+    '/groups/$groupId/lessons/$chapterId/': {
+      id: '/groups/$groupId/lessons/$chapterId/'
+      path: '/'
+      fullPath: '/groups/$groupId/lessons/$chapterId/'
+      preLoaderRoute: typeof GroupsGroupIdLessonsChapterIdIndexRouteImport
+      parentRoute: typeof GroupsGroupIdLessonsChapterIdRoute
+    }
     '/groups/$groupId/lessons/$chapterId/edit': {
       id: '/groups/$groupId/lessons/$chapterId/edit'
       path: '/edit'
@@ -193,12 +245,15 @@ declare module '@tanstack/react-router' {
 
 interface GroupsGroupIdLessonsChapterIdRouteChildren {
   GroupsGroupIdLessonsChapterIdEditRoute: typeof GroupsGroupIdLessonsChapterIdEditRoute
+  GroupsGroupIdLessonsChapterIdIndexRoute: typeof GroupsGroupIdLessonsChapterIdIndexRoute
 }
 
 const GroupsGroupIdLessonsChapterIdRouteChildren: GroupsGroupIdLessonsChapterIdRouteChildren =
   {
     GroupsGroupIdLessonsChapterIdEditRoute:
       GroupsGroupIdLessonsChapterIdEditRoute,
+    GroupsGroupIdLessonsChapterIdIndexRoute:
+      GroupsGroupIdLessonsChapterIdIndexRoute,
   }
 
 const GroupsGroupIdLessonsChapterIdRouteWithChildren =
@@ -208,12 +263,14 @@ const GroupsGroupIdLessonsChapterIdRouteWithChildren =
 
 interface GroupsGroupIdRouteChildren {
   GroupsGroupIdEditRoute: typeof GroupsGroupIdEditRoute
+  GroupsGroupIdIndexRoute: typeof GroupsGroupIdIndexRoute
   GroupsGroupIdLessonsChapterIdRoute: typeof GroupsGroupIdLessonsChapterIdRouteWithChildren
   GroupsGroupIdLessonsNewRoute: typeof GroupsGroupIdLessonsNewRoute
 }
 
 const GroupsGroupIdRouteChildren: GroupsGroupIdRouteChildren = {
   GroupsGroupIdEditRoute: GroupsGroupIdEditRoute,
+  GroupsGroupIdIndexRoute: GroupsGroupIdIndexRoute,
   GroupsGroupIdLessonsChapterIdRoute:
     GroupsGroupIdLessonsChapterIdRouteWithChildren,
   GroupsGroupIdLessonsNewRoute: GroupsGroupIdLessonsNewRoute,
@@ -226,11 +283,13 @@ const GroupsGroupIdRouteWithChildren = GroupsGroupIdRoute._addFileChildren(
 interface GroupsRouteChildren {
   GroupsGroupIdRoute: typeof GroupsGroupIdRouteWithChildren
   GroupsNewRoute: typeof GroupsNewRoute
+  GroupsIndexRoute: typeof GroupsIndexRoute
 }
 
 const GroupsRouteChildren: GroupsRouteChildren = {
   GroupsGroupIdRoute: GroupsGroupIdRouteWithChildren,
   GroupsNewRoute: GroupsNewRoute,
+  GroupsIndexRoute: GroupsIndexRoute,
 }
 
 const GroupsRouteWithChildren =

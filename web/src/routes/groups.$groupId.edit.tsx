@@ -1,22 +1,40 @@
 import { useState } from "react";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 
 import GroupForm, { type GroupFormValues } from "../components/group-form";
+import RouteError from "../components/route-error";
+import RouteNotFound from "../components/route-not-found";
+import RoutePending from "../components/route-pending";
 import { deleteAudioGroup, getAudioGroupDetails, updateAudioGroup } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/edit")({
-  loader: async ({ params }) =>
-    getAudioGroupDetails({
+  loader: async ({ params }) => {
+    const details = await getAudioGroupDetails({
       data: {
         groupId: params.groupId,
       },
-    }),
+    });
+
+    if (!details) {
+      throw notFound({
+        data: {
+          message: "That audio group does not exist.",
+        },
+      });
+    }
+
+    return details;
+  },
+  pendingComponent: RoutePending,
+  errorComponent: RouteError,
+  notFoundComponent: RouteNotFound,
   component: EditGroupPage,
 });
 
 function EditGroupPage() {
   const { group } = Route.useLoaderData();
   const navigate = useNavigate();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +50,7 @@ function EditGroupPage() {
           ...values,
         },
       });
+      await router.invalidate({ sync: true });
       await navigate({
         to: "/groups/$groupId",
         params: { groupId: updated.group.id },
@@ -49,6 +68,7 @@ function EditGroupPage() {
 
     try {
       await deleteAudioGroup({ data: { groupId: group.id } });
+      await router.invalidate({ sync: true });
       await navigate({ to: "/groups" });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not delete group.");
@@ -58,32 +78,30 @@ function EditGroupPage() {
   }
 
   return (
-    <main className="app-shell">
-      <section className="workspace narrow-workspace">
-        <Link className="text-link" to="/groups/$groupId" params={{ groupId: group.id }}>
-          Back to group
-        </Link>
-        <header className="page-header">
-          <div>
-            <p className="eyebrow">Edit group</p>
-            <h1>{group.title}</h1>
-          </div>
-        </header>
+    <section className="workspace narrow-workspace">
+      <Link className="text-link" to="/groups/$groupId" params={{ groupId: group.id }}>
+        Back to group
+      </Link>
+      <header className="page-header">
+        <div>
+          <p className="eyebrow">Edit group</p>
+          <h1>{group.title}</h1>
+        </div>
+      </header>
 
-        <GroupForm
-          initialValues={{ title: group.title, description: group.description }}
-          submitLabel="Save group"
-          pendingLabel="Saving..."
-          isSubmitting={isSubmitting}
-          onSubmit={submitGroup}
-        />
+      <GroupForm
+        initialValues={{ title: group.title, description: group.description }}
+        submitLabel="Save group"
+        pendingLabel="Saving..."
+        isSubmitting={isSubmitting}
+        onSubmit={submitGroup}
+      />
 
-        <button className="danger-action" type="button" onClick={removeGroup} disabled={isDeleting}>
-          {isDeleting ? "Deleting..." : "Delete group"}
-        </button>
+      <button className="danger-action" type="button" onClick={removeGroup} disabled={isDeleting}>
+        {isDeleting ? "Deleting..." : "Delete group"}
+      </button>
 
-        {error ? <p className="status-banner error-text">{error}</p> : null}
-      </section>
-    </main>
+      {error ? <p className="status-banner error-text">{error}</p> : null}
+    </section>
   );
 }

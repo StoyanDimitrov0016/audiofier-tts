@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 
 import LessonEditor, { type LessonEditorValues } from "../components/lesson-editor";
+import RouteError from "../components/route-error";
+import RouteNotFound from "../components/route-not-found";
+import RoutePending from "../components/route-pending";
 import { deleteChapter, getAudioGroupDetails, getChapterDetails, updateChapter } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/edit")({
@@ -20,17 +23,29 @@ export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/edit")
       }),
     ]);
 
+    if (!groupDetails || !chapter) {
+      throw notFound({
+        data: {
+          message: "That lesson does not exist.",
+        },
+      });
+    }
+
     return {
       group: groupDetails.group,
       chapter,
     };
   },
+  pendingComponent: RoutePending,
+  errorComponent: RouteError,
+  notFoundComponent: RouteNotFound,
   component: EditLessonPage,
 });
 
 function EditLessonPage() {
   const { group, chapter } = Route.useLoaderData();
   const navigate = useNavigate();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +64,7 @@ function EditLessonPage() {
           markdown: values.markdown,
         },
       });
+      await router.invalidate({ sync: true });
       await navigate({
         to: "/groups/$groupId/lessons/$chapterId",
         params: {
@@ -74,6 +90,7 @@ function EditLessonPage() {
           chapterId: chapter.id,
         },
       });
+      await router.invalidate({ sync: true });
       await navigate({
         to: "/groups/$groupId",
         params: { groupId: group.id },
@@ -86,40 +103,38 @@ function EditLessonPage() {
   }
 
   return (
-    <main className="app-shell">
-      <section className="workspace">
-        <Link
-          className="text-link"
-          to="/groups/$groupId/lessons/$chapterId"
-          params={{ groupId: group.id, chapterId: chapter.id }}
-        >
-          Back to lesson
-        </Link>
-        <header className="page-header">
-          <div>
-            <p className="eyebrow">Edit lesson</p>
-            <h1>{chapter.title}</h1>
-          </div>
-        </header>
+    <section className="workspace">
+      <Link
+        className="text-link"
+        to="/groups/$groupId/lessons/$chapterId"
+        params={{ groupId: group.id, chapterId: chapter.id }}
+      >
+        Back to lesson
+      </Link>
+      <header className="page-header">
+        <div>
+          <p className="eyebrow">Edit lesson</p>
+          <h1>{chapter.title}</h1>
+        </div>
+      </header>
 
-        <LessonEditor
-          initialValues={{
-            title: chapter.title,
-            order: chapter.order,
-            markdown: chapter.markdown,
-          }}
-          submitLabel="Save lesson"
-          pendingLabel="Saving..."
-          isSubmitting={isSubmitting}
-          onSubmit={submitLesson}
-        />
+      <LessonEditor
+        initialValues={{
+          title: chapter.title,
+          order: chapter.order,
+          markdown: chapter.markdown,
+        }}
+        submitLabel="Save lesson"
+        pendingLabel="Saving..."
+        isSubmitting={isSubmitting}
+        onSubmit={submitLesson}
+      />
 
-        <button className="danger-action" type="button" onClick={removeLesson} disabled={isDeleting}>
-          {isDeleting ? "Deleting..." : "Delete lesson"}
-        </button>
+      <button className="danger-action" type="button" onClick={removeLesson} disabled={isDeleting}>
+        {isDeleting ? "Deleting..." : "Delete lesson"}
+      </button>
 
-        {error ? <p className="status-banner error-text">{error}</p> : null}
-      </section>
-    </main>
+      {error ? <p className="status-banner error-text">{error}</p> : null}
+    </section>
   );
 }

@@ -1,8 +1,11 @@
 /// <reference types="vite/client" />
 
 import type { ReactNode } from "react";
-import { HeadContent, Link, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 
+import AppHeader from "../components/app-header";
+import RouteError from "../components/route-error";
+import RouteNotFound from "../components/route-not-found";
 import appCss from "../styles/app.css?url";
 
 export const Route = createRootRoute({
@@ -24,14 +27,20 @@ export const Route = createRootRoute({
       },
     ],
   }),
-  notFoundComponent: NotFoundPage,
+  errorComponent: RouteError,
+  notFoundComponent: RouteNotFound,
   component: RootComponent,
 });
 
 function RootComponent() {
   return (
     <RootDocument>
-      <Outlet />
+      <div className="app-shell">
+        <AppHeader />
+        <main className="app-main">
+          <Outlet />
+        </main>
+      </div>
     </RootDocument>
   );
 }
@@ -47,20 +56,5 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <Scripts />
       </body>
     </html>
-  );
-}
-
-function NotFoundPage() {
-  return (
-    <main className="app-shell">
-      <section className="workspace narrow-workspace">
-        <p className="eyebrow">Not found</p>
-        <h1>Missing Page</h1>
-        <p className="service-note">That page does not exist.</p>
-        <Link className="primary-link" to="/groups">
-          Open groups
-        </Link>
-      </section>
-    </main>
   );
 }
