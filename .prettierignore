@@ -1,0 +1,12 @@
+node_modules/
+.turbo/
+dist/
+web/dist/
+web/src/routeTree.gen.ts
+audio-api/.venv/
+audio-api/output/
+storage/generated/
+output/
+__pycache__/
+*.wav
+*.mp3

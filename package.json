@@ -11,10 +11,21 @@
     "dev:audio": "turbo dev --filter=audiofier-audio-api",
     "dev:web": "turbo dev --filter=audiofier-web",
     "build": "turbo build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
     "typecheck": "turbo typecheck",
     "test": "turbo test"
   },
   "devDependencies": {
-    "turbo": "2.9.6"
+    "@eslint/js": "9.39.4",
+    "@rolldown/plugin-babel": "0.2.3",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "9.39.4",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "prettier": "3.8.3",
+    "turbo": "2.9.6",
+    "typescript-eslint": "8.58.2"
   }
 }

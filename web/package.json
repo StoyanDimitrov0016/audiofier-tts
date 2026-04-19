@@ -5,19 +5,24 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tanstack/react-form": "1.29.0",
     "@tanstack/react-router": "1.168.22",
     "@tanstack/react-start": "1.167.41",
+    "marked": "18.0.2",
     "react": "19.2.5",
     "react-dom": "19.2.5",
+    "sanitize-html": "2.17.3",
     "zod": "4.3.6"
   },
   "devDependencies": {
     "@types/node": "25.6.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@types/sanitize-html": "2.16.1",
     "@vitejs/plugin-react": "6.0.1",
     "typescript": "6.0.3",
     "vite": "8.0.8"
