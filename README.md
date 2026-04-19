@@ -16,6 +16,9 @@ audio-api/            Python audio-generation API and CLI
   tts.cmd             Windows CLI launcher
   server.cmd          Windows server launcher
 web/                  TanStack Start UI and server functions
+storage/              Local lesson markdowns and generated audio metadata
+  markdowns/          Audio group and chapter source files
+  generated/          Generated audio output, ignored by Git
 package.json          Root npm workspace and Turborepo commands
 turbo.json            Shared task configuration
 ```
@@ -101,6 +104,48 @@ npm run build
 
 `typecheck` compiles the Python files and checks the web app. `test` runs the Python regression tests. `build` runs the web production build and the Python compile check.
 
+## Lesson Storage
+
+The web app owns the lesson library. It stores audio groups and chapter markdowns under:
+
+```text
+storage/markdowns/groups/
+```
+
+Each group has a `group.json` file and chapter files:
+
+```text
+storage/markdowns/groups/my-book/
+  group.json
+  chapters/
+    introduction.json
+    introduction.md
+```
+
+Generated audio is written under:
+
+```text
+storage/generated/groups/
+```
+
+That folder is ignored by Git so large WAV and MP3 files do not get committed. Markdown source files are not ignored, so you can decide per change whether lesson content belongs in the repository.
+
+The TanStack server functions handle create, edit, delete, and generation requests. The Python API is only responsible for turning supplied text into audio.
+
+The web UI is split into pages:
+
+```text
+/groups                                      list audio groups
+/groups/new                                  create a group
+/groups/:groupId                             list lessons in a group
+/groups/:groupId/edit                        update a group
+/groups/:groupId/lessons/new                 create a lesson
+/groups/:groupId/lessons/:chapterId          view and generate a lesson
+/groups/:groupId/lessons/:chapterId/edit     update a lesson
+```
+
+Group and lesson forms use TanStack Form with Zod schemas. Lesson previews render markdown with `marked` and sanitize the generated HTML before it is inserted into the page.
+
 ## Usage
 
 Use the Windows launcher:
@@ -177,7 +222,7 @@ $body = @{
 Invoke-RestMethod http://127.0.0.1:8765/generate -Method Post -ContentType "application/json" -Body $body
 ```
 
-Generate from raw text, which is the path the future web app can use:
+Generate from raw text, which is what the web app sends to the Python service through the TanStack BFF:
 
 ```powershell
 $body = @{
@@ -200,6 +245,8 @@ From the repository root, start both services together:
 npm run dev
 ```
 
+Open `http://localhost:3000`.
+
 Or start the Python server first:
 
 ```powershell
@@ -212,8 +259,6 @@ In a second terminal:
 cd .\web
 npm run dev
 ```
-
-Open `http://localhost:3000`.
 
 If the audio service uses another URL, set `AUDIO_API_URL` before starting the web app:
 
