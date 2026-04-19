@@ -7,9 +7,9 @@
     "web"
   ],
   "scripts": {
-    "dev": "turbo dev",
-    "dev:audio": "turbo dev --filter=audiofier-audio-api",
-    "dev:web": "turbo dev --filter=audiofier-web",
+    "dev": "turbo dev --env-mode=loose",
+    "dev:audio": "turbo dev --filter=audiofier-audio-api --env-mode=loose",
+    "dev:web": "turbo dev --filter=audiofier-web --env-mode=loose",
     "build": "turbo build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

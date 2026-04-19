@@ -6,6 +6,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import sys
+import traceback
 from typing import Any
 
 from generation import (
@@ -176,6 +178,7 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
                         "service": "audiofier-tts",
                         "projectRoot": str(PROJECT_ROOT),
                         "outputDir": display_path(config.output_dir),
+                        "pythonExecutable": sys.executable,
                     },
                 )
                 return
@@ -196,6 +199,7 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
             except (FileNotFoundError, ValueError) as error:
                 self.write_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(error)})
             except Exception as error:
+                traceback.print_exc()
                 self.write_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(error)})
 
         def read_json(self) -> dict[str, Any]:
@@ -241,6 +245,7 @@ def run_server(config: ServerConfig) -> None:
     server = ThreadingHTTPServer((config.host, config.port), handler)
     print(f"Audiofier TTS server listening on http://{config.host}:{config.port}")
     print(f"Output directory: {config.output_dir}")
+    print(f"Python executable: {sys.executable}")
     server.serve_forever()
 
 

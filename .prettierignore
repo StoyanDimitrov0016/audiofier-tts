@@ -6,6 +6,7 @@ web/src/routeTree.gen.ts
 audio-api/.venv/
 audio-api/output/
 storage/generated/
+storage/markdowns/
 output/
 __pycache__/
 *.wav
