@@ -9,38 +9,136 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GroupsNewRouteImport } from './routes/groups.new'
+import { Route as GroupsGroupIdRouteImport } from './routes/groups.$groupId'
+import { Route as GroupsGroupIdEditRouteImport } from './routes/groups.$groupId.edit'
+import { Route as GroupsGroupIdLessonsNewRouteImport } from './routes/groups.$groupId.lessons.new'
+import { Route as GroupsGroupIdLessonsChapterIdRouteImport } from './routes/groups.$groupId.lessons.$chapterId'
+import { Route as GroupsGroupIdLessonsChapterIdEditRouteImport } from './routes/groups.$groupId.lessons.$chapterId.edit'
 
+const GroupsRoute = GroupsRouteImport.update({
+  id: '/groups',
+  path: '/groups',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GroupsNewRoute = GroupsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => GroupsRoute,
+} as any)
+const GroupsGroupIdRoute = GroupsGroupIdRouteImport.update({
+  id: '/$groupId',
+  path: '/$groupId',
+  getParentRoute: () => GroupsRoute,
+} as any)
+const GroupsGroupIdEditRoute = GroupsGroupIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => GroupsGroupIdRoute,
+} as any)
+const GroupsGroupIdLessonsNewRoute = GroupsGroupIdLessonsNewRouteImport.update({
+  id: '/lessons/new',
+  path: '/lessons/new',
+  getParentRoute: () => GroupsGroupIdRoute,
+} as any)
+const GroupsGroupIdLessonsChapterIdRoute =
+  GroupsGroupIdLessonsChapterIdRouteImport.update({
+    id: '/lessons/$chapterId',
+    path: '/lessons/$chapterId',
+    getParentRoute: () => GroupsGroupIdRoute,
+  } as any)
+const GroupsGroupIdLessonsChapterIdEditRoute =
+  GroupsGroupIdLessonsChapterIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => GroupsGroupIdLessonsChapterIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/groups': typeof GroupsRouteWithChildren
+  '/groups/$groupId': typeof GroupsGroupIdRouteWithChildren
+  '/groups/new': typeof GroupsNewRoute
+  '/groups/$groupId/edit': typeof GroupsGroupIdEditRoute
+  '/groups/$groupId/lessons/$chapterId': typeof GroupsGroupIdLessonsChapterIdRouteWithChildren
+  '/groups/$groupId/lessons/new': typeof GroupsGroupIdLessonsNewRoute
+  '/groups/$groupId/lessons/$chapterId/edit': typeof GroupsGroupIdLessonsChapterIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/groups': typeof GroupsRouteWithChildren
+  '/groups/$groupId': typeof GroupsGroupIdRouteWithChildren
+  '/groups/new': typeof GroupsNewRoute
+  '/groups/$groupId/edit': typeof GroupsGroupIdEditRoute
+  '/groups/$groupId/lessons/$chapterId': typeof GroupsGroupIdLessonsChapterIdRouteWithChildren
+  '/groups/$groupId/lessons/new': typeof GroupsGroupIdLessonsNewRoute
+  '/groups/$groupId/lessons/$chapterId/edit': typeof GroupsGroupIdLessonsChapterIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/groups': typeof GroupsRouteWithChildren
+  '/groups/$groupId': typeof GroupsGroupIdRouteWithChildren
+  '/groups/new': typeof GroupsNewRoute
+  '/groups/$groupId/edit': typeof GroupsGroupIdEditRoute
+  '/groups/$groupId/lessons/$chapterId': typeof GroupsGroupIdLessonsChapterIdRouteWithChildren
+  '/groups/$groupId/lessons/new': typeof GroupsGroupIdLessonsNewRoute
+  '/groups/$groupId/lessons/$chapterId/edit': typeof GroupsGroupIdLessonsChapterIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/groups'
+    | '/groups/$groupId'
+    | '/groups/new'
+    | '/groups/$groupId/edit'
+    | '/groups/$groupId/lessons/$chapterId'
+    | '/groups/$groupId/lessons/new'
+    | '/groups/$groupId/lessons/$chapterId/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/groups'
+    | '/groups/$groupId'
+    | '/groups/new'
+    | '/groups/$groupId/edit'
+    | '/groups/$groupId/lessons/$chapterId'
+    | '/groups/$groupId/lessons/new'
+    | '/groups/$groupId/lessons/$chapterId/edit'
+  id:
+    | '__root__'
+    | '/'
+    | '/groups'
+    | '/groups/$groupId'
+    | '/groups/new'
+    | '/groups/$groupId/edit'
+    | '/groups/$groupId/lessons/$chapterId'
+    | '/groups/$groupId/lessons/new'
+    | '/groups/$groupId/lessons/$chapterId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GroupsRoute: typeof GroupsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/groups': {
+      id: '/groups'
+      path: '/groups'
+      fullPath: '/groups'
+      preLoaderRoute: typeof GroupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +146,99 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/groups/new': {
+      id: '/groups/new'
+      path: '/new'
+      fullPath: '/groups/new'
+      preLoaderRoute: typeof GroupsNewRouteImport
+      parentRoute: typeof GroupsRoute
+    }
+    '/groups/$groupId': {
+      id: '/groups/$groupId'
+      path: '/$groupId'
+      fullPath: '/groups/$groupId'
+      preLoaderRoute: typeof GroupsGroupIdRouteImport
+      parentRoute: typeof GroupsRoute
+    }
+    '/groups/$groupId/edit': {
+      id: '/groups/$groupId/edit'
+      path: '/edit'
+      fullPath: '/groups/$groupId/edit'
+      preLoaderRoute: typeof GroupsGroupIdEditRouteImport
+      parentRoute: typeof GroupsGroupIdRoute
+    }
+    '/groups/$groupId/lessons/new': {
+      id: '/groups/$groupId/lessons/new'
+      path: '/lessons/new'
+      fullPath: '/groups/$groupId/lessons/new'
+      preLoaderRoute: typeof GroupsGroupIdLessonsNewRouteImport
+      parentRoute: typeof GroupsGroupIdRoute
+    }
+    '/groups/$groupId/lessons/$chapterId': {
+      id: '/groups/$groupId/lessons/$chapterId'
+      path: '/lessons/$chapterId'
+      fullPath: '/groups/$groupId/lessons/$chapterId'
+      preLoaderRoute: typeof GroupsGroupIdLessonsChapterIdRouteImport
+      parentRoute: typeof GroupsGroupIdRoute
+    }
+    '/groups/$groupId/lessons/$chapterId/edit': {
+      id: '/groups/$groupId/lessons/$chapterId/edit'
+      path: '/edit'
+      fullPath: '/groups/$groupId/lessons/$chapterId/edit'
+      preLoaderRoute: typeof GroupsGroupIdLessonsChapterIdEditRouteImport
+      parentRoute: typeof GroupsGroupIdLessonsChapterIdRoute
+    }
   }
 }
 
+interface GroupsGroupIdLessonsChapterIdRouteChildren {
+  GroupsGroupIdLessonsChapterIdEditRoute: typeof GroupsGroupIdLessonsChapterIdEditRoute
+}
+
+const GroupsGroupIdLessonsChapterIdRouteChildren: GroupsGroupIdLessonsChapterIdRouteChildren =
+  {
+    GroupsGroupIdLessonsChapterIdEditRoute:
+      GroupsGroupIdLessonsChapterIdEditRoute,
+  }
+
+const GroupsGroupIdLessonsChapterIdRouteWithChildren =
+  GroupsGroupIdLessonsChapterIdRoute._addFileChildren(
+    GroupsGroupIdLessonsChapterIdRouteChildren,
+  )
+
+interface GroupsGroupIdRouteChildren {
+  GroupsGroupIdEditRoute: typeof GroupsGroupIdEditRoute
+  GroupsGroupIdLessonsChapterIdRoute: typeof GroupsGroupIdLessonsChapterIdRouteWithChildren
+  GroupsGroupIdLessonsNewRoute: typeof GroupsGroupIdLessonsNewRoute
+}
+
+const GroupsGroupIdRouteChildren: GroupsGroupIdRouteChildren = {
+  GroupsGroupIdEditRoute: GroupsGroupIdEditRoute,
+  GroupsGroupIdLessonsChapterIdRoute:
+    GroupsGroupIdLessonsChapterIdRouteWithChildren,
+  GroupsGroupIdLessonsNewRoute: GroupsGroupIdLessonsNewRoute,
+}
+
+const GroupsGroupIdRouteWithChildren = GroupsGroupIdRoute._addFileChildren(
+  GroupsGroupIdRouteChildren,
+)
+
+interface GroupsRouteChildren {
+  GroupsGroupIdRoute: typeof GroupsGroupIdRouteWithChildren
+  GroupsNewRoute: typeof GroupsNewRoute
+}
+
+const GroupsRouteChildren: GroupsRouteChildren = {
+  GroupsGroupIdRoute: GroupsGroupIdRouteWithChildren,
+  GroupsNewRoute: GroupsNewRoute,
+}
+
+const GroupsRouteWithChildren =
+  GroupsRoute._addFileChildren(GroupsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GroupsRoute: GroupsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
