@@ -54,11 +54,17 @@ export const getLessonLibrary = createServerFn({ method: "GET" }).handler(async 
   return lessonRepository.getLibrary();
 });
 
-export const getAudioGroupDetails = createServerFn({ method: "POST" })
+export const getAudioGroupDetails = createServerFn({ method: "GET" })
   .inputValidator(parseGetGroupInput)
   .handler(async ({ data }) => {
+    const group = await lessonRepository.findGroup(data.groupId);
+
+    if (!group) {
+      return null;
+    }
+
     return {
-      group: await lessonRepository.getGroup(data.groupId),
+      group,
       chapters: await lessonRepository.listChapters(data.groupId),
     };
   });
@@ -69,7 +75,6 @@ export const createAudioGroup = createServerFn({ method: "POST" })
     const group = await lessonRepository.createGroup(data);
     return {
       group,
-      library: await lessonRepository.getLibrary(),
     };
   });
 
@@ -79,7 +84,6 @@ export const updateAudioGroup = createServerFn({ method: "POST" })
     const group = await lessonRepository.updateGroup(data);
     return {
       group,
-      library: await lessonRepository.getLibrary(),
     };
   });
 
@@ -87,7 +91,9 @@ export const deleteAudioGroup = createServerFn({ method: "POST" })
   .inputValidator(parseDeleteGroupInput)
   .handler(async ({ data }) => {
     await lessonRepository.deleteGroup(data.groupId);
-    return lessonRepository.getLibrary();
+    return {
+      ok: true,
+    };
   });
 
 export const createChapter = createServerFn({ method: "POST" })
@@ -96,14 +102,13 @@ export const createChapter = createServerFn({ method: "POST" })
     const chapter = await lessonRepository.createChapter(data);
     return {
       chapter,
-      library: await lessonRepository.getLibrary(),
     };
   });
 
-export const getChapterDetails = createServerFn({ method: "POST" })
+export const getChapterDetails = createServerFn({ method: "GET" })
   .inputValidator(parseGetChapterInput)
   .handler(async ({ data }) => {
-    return lessonRepository.getChapter(data.groupId, data.chapterId);
+    return lessonRepository.findChapter(data.groupId, data.chapterId);
   });
 
 export const updateChapter = createServerFn({ method: "POST" })
@@ -112,7 +117,6 @@ export const updateChapter = createServerFn({ method: "POST" })
     const chapter = await lessonRepository.updateChapter(data);
     return {
       chapter,
-      library: await lessonRepository.getLibrary(),
     };
   });
 
@@ -120,7 +124,9 @@ export const deleteChapter = createServerFn({ method: "POST" })
   .inputValidator(parseDeleteChapterInput)
   .handler(async ({ data }) => {
     await lessonRepository.deleteChapter(data.groupId, data.chapterId);
-    return lessonRepository.getLibrary();
+    return {
+      ok: true,
+    };
   });
 
 export const generateChapterAudio = createServerFn({ method: "POST" })
@@ -145,6 +151,5 @@ export const generateChapterAudio = createServerFn({ method: "POST" })
     return {
       result,
       generatedAudio,
-      library: await lessonRepository.getLibrary(),
     };
   });

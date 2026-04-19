@@ -1,4 +1,4 @@
-import { promises as fs } from "node:fs";
+import promises from "node:fs/promises";
 import path from "node:path";
 
 type JsonSchema<T> = {
@@ -24,7 +24,7 @@ export function slugify(value: string, options?: { fallback?: string; maxLength?
 
 export async function pathExists(filePath: string) {
   try {
-    await fs.access(filePath);
+    await promises.access(filePath);
     return true;
   } catch {
     return false;
@@ -32,17 +32,17 @@ export async function pathExists(filePath: string) {
 }
 
 export async function ensureDir(dirPath: string) {
-  await fs.mkdir(dirPath, { recursive: true });
+  await promises.mkdir(dirPath, { recursive: true });
 }
 
 export async function readJson<T>(filePath: string, schema: JsonSchema<T>) {
-  const raw = await fs.readFile(filePath, "utf-8");
+  const raw = await promises.readFile(filePath, "utf-8");
   return schema.parse(JSON.parse(raw));
 }
 
 export async function writeJson(filePath: string, value: unknown) {
   await ensureDir(path.dirname(filePath));
-  await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
+  await promises.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
 }
 
 export async function uniqueId(

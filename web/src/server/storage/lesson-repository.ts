@@ -120,6 +120,14 @@ async function getGroup(groupId: string): Promise<AudioGroup> {
   return readJson(groupMetaPath(groupId), AudioGroupSchema);
 }
 
+async function findGroup(groupId: string): Promise<AudioGroup | null> {
+  if (!(await pathExists(groupMetaPath(groupId)))) {
+    return null;
+  }
+
+  return readJson(groupMetaPath(groupId), AudioGroupSchema);
+}
+
 async function createGroup(input: { title: string; description?: string }): Promise<AudioGroup> {
   await ensureStorage();
   const id = await uniqueId(input.title, async (candidate) => pathExists(groupDir(candidate)));
@@ -168,6 +176,22 @@ async function getChapter(groupId: string, chapterId: string): Promise<Chapter> 
     markdown,
     generatedAudio: await readGeneratedAudio(groupId, chapterId),
   };
+}
+
+async function findChapter(groupId: string, chapterId: string): Promise<Chapter | null> {
+  if (!(await pathExists(groupMetaPath(groupId)))) {
+    return null;
+  }
+
+  if (!(await pathExists(chapterMetaPath(groupId, chapterId)))) {
+    return null;
+  }
+
+  if (!(await pathExists(chapterMarkdownPath(groupId, chapterId)))) {
+    return null;
+  }
+
+  return getChapter(groupId, chapterId);
 }
 
 async function createChapter(input: {
@@ -259,10 +283,12 @@ export const lessonRepository = {
   listGroups,
   listChapters,
   getGroup,
+  findGroup,
   createGroup,
   updateGroup,
   deleteGroup,
   getChapter,
+  findChapter,
   createChapter,
   updateChapter,
   deleteChapter,
