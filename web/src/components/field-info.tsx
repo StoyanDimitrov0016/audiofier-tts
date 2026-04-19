@@ -1,10 +1,6 @@
 import { useFieldContext } from "./form-context";
 
-interface Props {
-  readonly children?: never;
-}
-
-export default function FieldInfo(_props: Props) {
+export default function FieldInfo() {
   const field = useFieldContext<unknown>();
   const messages = field.state.meta.errors
     .map((error) => {
