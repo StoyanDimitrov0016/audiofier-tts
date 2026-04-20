@@ -5,6 +5,9 @@ import LessonEditor, { type LessonEditorValues } from "../components/lesson-edit
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import RoutePending from "../components/route-pending";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { buttonVariants } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
 import { createChapter, getAudioGroupDetails } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/new")({
@@ -67,30 +70,40 @@ function NewLessonPage() {
   }
 
   return (
-    <section className="workspace">
-      <Link className="text-link" to="/groups/$groupId" params={{ groupId: group.id }}>
+    <section className="grid gap-5 pt-2">
+      <Link
+        className={buttonVariants({ variant: "link", className: "w-fit px-0" })}
+        to="/groups/$groupId"
+        params={{ groupId: group.id }}
+      >
         Back to group
       </Link>
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">New lesson</p>
-          <h1>{group.title}</h1>
-        </div>
+      <header>
+        <p className="text-sm font-bold uppercase text-primary">New lesson</p>
+        <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{group.title}</h1>
       </header>
 
-      <LessonEditor
-        initialValues={{
-          title: "",
-          order: chapters.length + 1,
-          markdown: "# New Lesson\n\n",
-        }}
-        submitLabel="Create lesson"
-        pendingLabel="Creating..."
-        isSubmitting={isSubmitting}
-        onSubmit={submitLesson}
-      />
+      <Card className="rounded-lg">
+        <CardContent>
+          <LessonEditor
+            initialValues={{
+              title: "",
+              order: chapters.length + 1,
+              markdown: "# New Lesson\n\n",
+            }}
+            submitLabel="Create lesson"
+            pendingLabel="Creating..."
+            isSubmitting={isSubmitting}
+            onSubmit={submitLesson}
+          />
+        </CardContent>
+      </Card>
 
-      {error ? <p className="status-banner error-text">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </section>
   );
 }

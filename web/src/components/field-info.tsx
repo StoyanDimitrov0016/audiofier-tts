@@ -20,5 +20,5 @@ export default function FieldInfo() {
     return null;
   }
 
-  return <p className="field-error">{messages.join(", ")}</p>;
+  return <p className="text-sm font-medium text-destructive">{messages.join(", ")}</p>;
 }

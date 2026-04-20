@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { useAppForm } from "./app-form";
+import { Button } from "./ui/button";
 
 export interface GroupFormValues {
   title: string;
@@ -36,7 +37,7 @@ export default function GroupForm(props: Props) {
 
   return (
     <form
-      className="stack-form"
+      className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -51,7 +52,7 @@ export default function GroupForm(props: Props) {
       <form.AppField
         name="description"
         children={(field) => (
-          <field.TextareaField label="Description" className="compact-textarea" placeholder="Optional" />
+          <field.TextareaField label="Description" className="min-h-24 resize-y" placeholder="Optional" />
         )}
       />
 
@@ -61,9 +62,9 @@ export default function GroupForm(props: Props) {
           const [canSubmit] = state;
 
           return (
-            <button className="primary-action" type="submit" disabled={!canSubmit || props.isSubmitting}>
+            <Button className="w-fit" type="submit" disabled={!canSubmit || props.isSubmitting}>
               {props.isSubmitting ? props.pendingLabel : props.submitLabel}
-            </button>
+            </Button>
           );
         }}
       />

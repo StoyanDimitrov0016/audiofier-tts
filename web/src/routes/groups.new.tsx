@@ -4,6 +4,9 @@ import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-r
 import GroupForm, { type GroupFormValues } from "../components/group-form";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { buttonVariants } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
 import { createAudioGroup } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/new")({
@@ -37,26 +40,32 @@ function NewGroupPage() {
   }
 
   return (
-    <section className="workspace narrow-workspace">
-      <Link className="text-link" to="/groups">
+    <section className="mx-auto grid w-full max-w-3xl gap-5 pt-2">
+      <Link className={buttonVariants({ variant: "link", className: "w-fit px-0" })} to="/groups">
         Back to groups
       </Link>
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">New group</p>
-          <h1>Create Group</h1>
-        </div>
+      <header>
+        <p className="text-sm font-bold uppercase text-primary">New group</p>
+        <h1 className="mt-1 text-4xl font-semibold tracking-tight md:text-6xl">Create Group</h1>
       </header>
 
-      <GroupForm
-        initialValues={{ title: "", description: "" }}
-        submitLabel="Create group"
-        pendingLabel="Creating..."
-        isSubmitting={isSubmitting}
-        onSubmit={submitGroup}
-      />
+      <Card className="rounded-lg">
+        <CardContent>
+          <GroupForm
+            initialValues={{ title: "", description: "" }}
+            submitLabel="Create group"
+            pendingLabel="Creating..."
+            isSubmitting={isSubmitting}
+            onSubmit={submitGroup}
+          />
+        </CardContent>
+      </Card>
 
-      {error ? <p className="status-banner error-text">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </section>
   );
 }

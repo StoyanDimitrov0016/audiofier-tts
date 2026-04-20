@@ -3,6 +3,9 @@ import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import RoutePending from "../components/route-pending";
+import { Badge } from "../components/ui/badge";
+import { buttonVariants } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { getAudioGroupDetails } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/")({
@@ -33,40 +36,52 @@ function GroupIndexPage() {
   const { group, chapters } = Route.useLoaderData();
 
   return (
-    <section className="workspace">
-      <Link className="text-link" to="/groups">
+    <section className="grid gap-6 pt-2">
+      <Link className={buttonVariants({ variant: "link", className: "w-fit px-0" })} to="/groups">
         Back to groups
       </Link>
-      <header className="page-header">
+      <header className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div>
-          <p className="eyebrow">Audio group</p>
-          <h1>{group.title}</h1>
-          {group.description ? <p className="service-note">{group.description}</p> : null}
+          <p className="text-sm font-bold uppercase text-primary">Audio group</p>
+          <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{group.title}</h1>
+          {group.description ? <p className="mt-4 max-w-3xl text-muted-foreground">{group.description}</p> : null}
         </div>
-        <div className="header-actions">
-          <Link className="secondary-link" to="/groups/$groupId/edit" params={{ groupId: group.id }}>
+        <div className="flex flex-wrap gap-2 md:justify-end">
+          <Link
+            className={buttonVariants({ variant: "outline" })}
+            to="/groups/$groupId/edit"
+            params={{ groupId: group.id }}
+          >
             Edit group
           </Link>
-          <Link className="primary-link" to="/groups/$groupId/lessons/new" params={{ groupId: group.id }}>
+          <Link className={buttonVariants()} to="/groups/$groupId/lessons/new" params={{ groupId: group.id }}>
             New lesson
           </Link>
         </div>
       </header>
 
       {chapters.length === 0 ? (
-        <p className="empty-note">Add lessons to audiofy this group in smaller files.</p>
+        <Card className="rounded-lg">
+          <CardContent className="text-muted-foreground">
+            Add lessons to audiofy this group in smaller files.
+          </CardContent>
+        </Card>
       ) : (
-        <div className="lesson-list">
+        <div className="grid gap-2">
           {chapters.map((chapter) => (
             <Link
-              className="lesson-row"
+              className="no-underline"
               key={chapter.id}
               to="/groups/$groupId/lessons/$chapterId"
               params={{ groupId: group.id, chapterId: chapter.id }}
             >
-              <span>{chapter.order}</span>
-              <strong>{chapter.title}</strong>
-              <em>{chapter.generatedAudio ? "Generated" : "Not generated"}</em>
+              <Card className="rounded-lg transition-colors hover:bg-muted/40">
+                <CardHeader className="grid-cols-[auto_minmax(0,1fr)_auto] items-center">
+                  <Badge variant="outline">{chapter.order}</Badge>
+                  <CardTitle>{chapter.title}</CardTitle>
+                  <CardDescription>{chapter.generatedAudio ? "Generated" : "Not generated"}</CardDescription>
+                </CardHeader>
+              </Card>
             </Link>
           ))}
         </div>

@@ -5,6 +5,9 @@ import GroupForm, { type GroupFormValues } from "../components/group-form";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import RoutePending from "../components/route-pending";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Button, buttonVariants } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
 import { deleteAudioGroup, getAudioGroupDetails, updateAudioGroup } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/edit")({
@@ -78,30 +81,40 @@ function EditGroupPage() {
   }
 
   return (
-    <section className="workspace narrow-workspace">
-      <Link className="text-link" to="/groups/$groupId" params={{ groupId: group.id }}>
+    <section className="mx-auto grid w-full max-w-3xl gap-5 pt-2">
+      <Link
+        className={buttonVariants({ variant: "link", className: "w-fit px-0" })}
+        to="/groups/$groupId"
+        params={{ groupId: group.id }}
+      >
         Back to group
       </Link>
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Edit group</p>
-          <h1>{group.title}</h1>
-        </div>
+      <header>
+        <p className="text-sm font-bold uppercase text-primary">Edit group</p>
+        <h1 className="mt-1 text-4xl font-semibold tracking-tight md:text-6xl">{group.title}</h1>
       </header>
 
-      <GroupForm
-        initialValues={{ title: group.title, description: group.description }}
-        submitLabel="Save group"
-        pendingLabel="Saving..."
-        isSubmitting={isSubmitting}
-        onSubmit={submitGroup}
-      />
+      <Card className="rounded-lg">
+        <CardContent>
+          <GroupForm
+            initialValues={{ title: group.title, description: group.description }}
+            submitLabel="Save group"
+            pendingLabel="Saving..."
+            isSubmitting={isSubmitting}
+            onSubmit={submitGroup}
+          />
+        </CardContent>
+      </Card>
 
-      <button className="danger-action" type="button" onClick={removeGroup} disabled={isDeleting}>
+      <Button className="w-fit" variant="destructive" type="button" onClick={removeGroup} disabled={isDeleting}>
         {isDeleting ? "Deleting..." : "Delete group"}
-      </button>
+      </Button>
 
-      {error ? <p className="status-banner error-text">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </section>
   );
 }

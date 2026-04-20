@@ -1,5 +1,7 @@
 import FieldInfo from "./field-info";
 import { useFieldContext } from "./form-context";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 interface Props {
   label: string;
@@ -12,9 +14,9 @@ export default function NumberField(props: Props) {
   const field = useFieldContext<number>();
 
   return (
-    <label>
-      {props.label}
-      <input
+    <div className="grid gap-2">
+      <Label>{props.label}</Label>
+      <Input
         type="number"
         min={props.min}
         max={props.max}
@@ -24,6 +26,6 @@ export default function NumberField(props: Props) {
         onChange={(event) => field.handleChange(Number(event.target.value))}
       />
       <FieldInfo />
-    </label>
+    </div>
   );
 }

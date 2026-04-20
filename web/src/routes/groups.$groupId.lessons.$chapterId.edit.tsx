@@ -5,6 +5,9 @@ import LessonEditor, { type LessonEditorValues } from "../components/lesson-edit
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import RoutePending from "../components/route-pending";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Button, buttonVariants } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
 import { deleteChapter, getAudioGroupDetails, getChapterDetails, updateChapter } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/edit")({
@@ -103,38 +106,44 @@ function EditLessonPage() {
   }
 
   return (
-    <section className="workspace">
+    <section className="grid gap-5 pt-2">
       <Link
-        className="text-link"
+        className={buttonVariants({ variant: "link", className: "w-fit px-0" })}
         to="/groups/$groupId/lessons/$chapterId"
         params={{ groupId: group.id, chapterId: chapter.id }}
       >
         Back to lesson
       </Link>
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Edit lesson</p>
-          <h1>{chapter.title}</h1>
-        </div>
+      <header>
+        <p className="text-sm font-bold uppercase text-primary">Edit lesson</p>
+        <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{chapter.title}</h1>
       </header>
 
-      <LessonEditor
-        initialValues={{
-          title: chapter.title,
-          order: chapter.order,
-          markdown: chapter.markdown,
-        }}
-        submitLabel="Save lesson"
-        pendingLabel="Saving..."
-        isSubmitting={isSubmitting}
-        onSubmit={submitLesson}
-      />
+      <Card className="rounded-lg">
+        <CardContent>
+          <LessonEditor
+            initialValues={{
+              title: chapter.title,
+              order: chapter.order,
+              markdown: chapter.markdown,
+            }}
+            submitLabel="Save lesson"
+            pendingLabel="Saving..."
+            isSubmitting={isSubmitting}
+            onSubmit={submitLesson}
+          />
+        </CardContent>
+      </Card>
 
-      <button className="danger-action" type="button" onClick={removeLesson} disabled={isDeleting}>
+      <Button className="w-fit" variant="destructive" type="button" onClick={removeLesson} disabled={isDeleting}>
         {isDeleting ? "Deleting..." : "Delete lesson"}
-      </button>
+      </Button>
 
-      {error ? <p className="status-banner error-text">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </section>
   );
 }

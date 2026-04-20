@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { useAppForm } from "./app-form";
 import MarkdownPreview from "./markdown-preview";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 export interface LessonEditorValues {
   title: string;
@@ -40,14 +42,14 @@ export default function LessonEditor(props: Props) {
 
   return (
     <form
-      className="lesson-editor"
+      className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
         event.stopPropagation();
         void form.handleSubmit();
       }}
     >
-      <div className="chapter-fields">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
         <form.AppField name="title" children={(field) => <field.TextField label="Lesson title" />} />
         <form.AppField name="order" children={(field) => <field.NumberField label="Order" min={1} step={1} />} />
       </div>
@@ -55,12 +57,16 @@ export default function LessonEditor(props: Props) {
       <form.AppField
         name="markdown"
         children={(field) => (
-          <div className="markdown-editor-grid">
-            <field.TextareaField label="Markdown" />
-            <section aria-label="Markdown preview">
-              <p className="panel-label">Preview</p>
-              <MarkdownPreview markdown={field.state.value} />
-            </section>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+            <field.TextareaField label="Markdown" className="min-h-[520px] resize-y leading-relaxed" />
+            <Card className="rounded-lg" aria-label="Markdown preview">
+              <CardHeader>
+                <CardTitle>Preview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MarkdownPreview markdown={field.state.value} />
+              </CardContent>
+            </Card>
           </div>
         )}
       />
@@ -71,9 +77,9 @@ export default function LessonEditor(props: Props) {
           const [canSubmit] = state;
 
           return (
-            <button className="primary-action" type="submit" disabled={!canSubmit || props.isSubmitting}>
+            <Button className="w-fit" type="submit" disabled={!canSubmit || props.isSubmitting}>
               {props.isSubmitting ? props.pendingLabel : props.submitLabel}
-            </button>
+            </Button>
           );
         }}
       />

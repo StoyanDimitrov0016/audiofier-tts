@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 
 import AppHeader from "../components/app-header";
+import AppSidePanel from "../components/app-side-panel";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
+import { getLessonLibrary } from "../server/lessons";
 import appCss from "../styles/app.css?url";
 
 export const Route = createRootRoute({
@@ -27,19 +29,25 @@ export const Route = createRootRoute({
       },
     ],
   }),
+  loader: async () => getLessonLibrary(),
   errorComponent: RouteError,
   notFoundComponent: RouteNotFound,
   component: RootComponent,
 });
 
 function RootComponent() {
+  const library = Route.useLoaderData();
+
   return (
     <RootDocument>
-      <div className="app-shell">
+      <div className="min-h-screen bg-background text-foreground">
         <AppHeader />
-        <main className="app-main">
-          <Outlet />
-        </main>
+        <div className="mx-auto grid w-[min(1380px,calc(100%-32px))] grid-cols-[300px_minmax(0,1fr)] items-start gap-6 py-6 max-lg:grid-cols-1 max-sm:w-[min(100%-20px,1380px)] max-sm:py-4">
+          <AppSidePanel library={library} />
+          <main className="min-w-0">
+            <Outlet />
+          </main>
+        </div>
       </div>
     </RootDocument>
   );

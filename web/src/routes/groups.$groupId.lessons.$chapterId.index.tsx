@@ -5,6 +5,13 @@ import MarkdownPreview from "../components/markdown-preview";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import RoutePending from "../components/route-pending";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Badge } from "../components/ui/badge";
+import { Button, buttonVariants } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Checkbox } from "../components/ui/checkbox";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import { generateChapterAudio, getAudioGroupDetails, getChapterDetails } from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
@@ -79,17 +86,21 @@ function LessonIndexPage() {
   }
 
   return (
-    <section className="workspace">
-      <Link className="text-link" to="/groups/$groupId" params={{ groupId: group.id }}>
+    <section className="grid gap-6 pt-2">
+      <Link
+        className={buttonVariants({ variant: "link", className: "w-fit px-0" })}
+        to="/groups/$groupId"
+        params={{ groupId: group.id }}
+      >
         Back to group
       </Link>
-      <header className="page-header">
+      <header className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div>
-          <p className="eyebrow">Lesson {chapter.order}</p>
-          <h1>{chapter.title}</h1>
+          <p className="text-sm font-bold uppercase text-primary">Lesson {chapter.order}</p>
+          <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{chapter.title}</h1>
         </div>
         <Link
-          className="secondary-link"
+          className={buttonVariants({ variant: "outline" })}
           to="/groups/$groupId/lessons/$chapterId/edit"
           params={{ groupId: group.id, chapterId: chapter.id }}
         >
@@ -97,61 +108,83 @@ function LessonIndexPage() {
         </Link>
       </header>
 
-      <div className="lesson-view-grid">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <MarkdownPreview markdown={chapter.markdown} />
 
-        <aside className="control-panel" aria-label="Audio settings">
-          <label>
-            Voice
-            <input value={voice} onChange={(event) => setVoice(event.target.value)} />
-          </label>
-
-          <label>
-            Speed
-            <input
-              type="number"
-              min="0.5"
-              max="2"
-              step="0.05"
-              value={speed}
-              onChange={(event) => setSpeed(Number(event.target.value))}
-            />
-          </label>
-
-          <label className="toggle-row">
-            <input type="checkbox" checked={wavOnly} onChange={(event) => setWavOnly(event.target.checked)} />
-            WAV only
-          </label>
-
-          <button className="primary-action" type="button" onClick={generateAudio} disabled={isGenerating}>
-            {isGenerating ? "Generating..." : "Generate audio"}
-          </button>
-
-          {generatedAudio ? (
-            <div className="result-box">
-              <p>Last generated {generatedAudio.formattedDuration}</p>
-              <dl>
-                <div>
-                  <dt>Output</dt>
-                  <dd>{generatedAudio.lessonOutputDir}</dd>
-                </div>
-                <div>
-                  <dt>WAV</dt>
-                  <dd>{generatedAudio.wavPath}</dd>
-                </div>
-                {generatedAudio.mp3Path ? (
-                  <div>
-                    <dt>MP3</dt>
-                    <dd>{generatedAudio.mp3Path}</dd>
-                  </div>
-                ) : null}
-              </dl>
+        <Card className="rounded-lg" role="complementary" aria-label="Audio settings">
+          <CardHeader>
+            <CardTitle>Audio settings</CardTitle>
+            <CardDescription>Generate audio for this lesson.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="voice">Voice</Label>
+              <Input id="voice" value={voice} onChange={(event) => setVoice(event.target.value)} />
             </div>
-          ) : null}
 
-          {notice ? <p className="status-banner">{notice}</p> : null}
-          {error ? <p className="status-banner error-text">{error}</p> : null}
-        </aside>
+            <div className="grid gap-2">
+              <Label htmlFor="speed">Speed</Label>
+              <Input
+                id="speed"
+                type="number"
+                min="0.5"
+                max="2"
+                step="0.05"
+                value={speed}
+                onChange={(event) => setSpeed(Number(event.target.value))}
+              />
+            </div>
+
+            <Label className="flex items-center gap-2">
+              <Checkbox checked={wavOnly} onCheckedChange={(checked) => setWavOnly(Boolean(checked))} />
+              WAV only
+            </Label>
+
+            <Button type="button" onClick={generateAudio} disabled={isGenerating}>
+              {isGenerating ? "Generating..." : "Generate audio"}
+            </Button>
+
+            {generatedAudio ? (
+              <Card className="rounded-lg bg-muted/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    Last generated
+                    <Badge variant="secondary">{generatedAudio.formattedDuration}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <dl className="grid gap-3">
+                    <div className="grid gap-1">
+                      <dt className="text-xs font-semibold uppercase text-muted-foreground">Output</dt>
+                      <dd className="[overflow-wrap:anywhere]">{generatedAudio.lessonOutputDir}</dd>
+                    </div>
+                    <div className="grid gap-1">
+                      <dt className="text-xs font-semibold uppercase text-muted-foreground">WAV</dt>
+                      <dd className="[overflow-wrap:anywhere]">{generatedAudio.wavPath}</dd>
+                    </div>
+                    {generatedAudio.mp3Path ? (
+                      <div className="grid gap-1">
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">MP3</dt>
+                        <dd className="[overflow-wrap:anywhere]">{generatedAudio.mp3Path}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {notice ? (
+              <Alert>
+                <AlertDescription>{notice}</AlertDescription>
+              </Alert>
+            ) : null}
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
     </section>
   );
