@@ -16,6 +16,7 @@ __pycache__/
 
 audio-api/output/
 /output/
+/storage/
 /storage/generated/*
 !/storage/generated/.gitkeep
 *.wav
