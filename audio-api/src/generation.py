@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from text_processing import make_chunks, prepare_text_for_tts
 
 DEFAULT_REPO_ID = "hexgrad/Kokoro-82M"
 DEFAULT_VOICE = "af_heart"
 DEFAULT_LANG_CODE = "a"
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 @dataclass(frozen=True)
@@ -87,6 +90,7 @@ def generate_audio_from_cleaned_text(
     cleaned: str,
     stem: str,
     options: GenerationOptions,
+    progress_callback: ProgressCallback | None = None,
 ) -> GenerationResult:
     from audio_generation import (
         convert_wav_to_mp3,
@@ -107,6 +111,16 @@ def generate_audio_from_cleaned_text(
     if not chunks:
         raise ValueError("No chunks were created from the input text.")
 
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "chunking",
+                "current": 0,
+                "total": len(chunks),
+                "message": f"Prepared {len(chunks)} chunks.",
+            }
+        )
+
     output_stem = sanitize_stem(stem)
     lesson_output_dir = options.output_dir / output_stem
 
@@ -116,7 +130,18 @@ def generate_audio_from_cleaned_text(
         speed=options.speed,
         repo_id=options.repo_id,
         lang_code=options.lang_code,
+        progress_callback=progress_callback,
     )
+
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "saving",
+                "current": len(chunks),
+                "total": len(chunks),
+                "message": "Saving final WAV.",
+            }
+        )
 
     if options.keep_chunks:
         save_chunk_wavs(wavs, lesson_output_dir / "chunks", output_stem)
@@ -130,6 +155,16 @@ def generate_audio_from_cleaned_text(
 
     final_mp3: Path | None = None
     if not options.wav_only:
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "stage": "converting",
+                    "current": len(chunks),
+                    "total": len(chunks),
+                    "message": "Converting WAV to MP3.",
+                }
+            )
+
         ffmpeg_executable = resolve_ffmpeg(options.ffmpeg_path)
         final_mp3 = lesson_output_dir / f"{output_stem}.mp3"
         convert_wav_to_mp3(
@@ -154,16 +189,19 @@ def generate_audio_from_text(
     stem: str,
     suffix: str,
     options: GenerationOptions,
+    progress_callback: ProgressCallback | None = None,
 ) -> GenerationResult:
     normalized_suffix = validate_text_suffix(suffix)
     cleaned = prepare_text_for_tts(text.lstrip("\ufeff"), normalized_suffix)
-    return generate_audio_from_cleaned_text(cleaned, stem, options)
+    return generate_audio_from_cleaned_text(cleaned, stem, options, progress_callback=progress_callback)
 
 
-def generate_audio(input_path: Path, options: GenerationOptions) -> GenerationResult:
+def generate_audio(
+    input_path: Path, options: GenerationOptions, progress_callback: ProgressCallback | None = None
+) -> GenerationResult:
     validate_generation_options(options)
     validate_input_file(input_path)
 
     raw = read_text(input_path)
     cleaned = prepare_text_for_tts(raw, input_path.suffix)
-    return generate_audio_from_cleaned_text(cleaned, input_path.stem, options)
+    return generate_audio_from_cleaned_text(cleaned, input_path.stem, options, progress_callback=progress_callback)

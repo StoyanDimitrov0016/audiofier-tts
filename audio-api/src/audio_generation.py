@@ -4,13 +4,15 @@ import shutil
 import subprocess
 import sys
 import warnings
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import soundfile as sf
 
 SAMPLE_RATE = 24000
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 def suppress_known_runtime_noise() -> None:
@@ -59,6 +61,7 @@ def synthesize_chunks(
     speed: float,
     repo_id: str,
     lang_code: str,
+    progress_callback: ProgressCallback | None = None,
 ) -> list[np.ndarray]:
     patch_phonemizer_cleanup_bug()
     from kokoro import KPipeline
@@ -69,6 +72,16 @@ def synthesize_chunks(
 
     for index, chunk in enumerate(chunk_list, start=1):
         print(f"[{index}/{len(chunk_list)}] Synthesizing {len(chunk)} characters...")
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "stage": "synthesizing",
+                    "current": index,
+                    "total": len(chunk_list),
+                    "message": f"Synthesizing chunk {index} of {len(chunk_list)}.",
+                }
+            )
+
         generator = pipeline(chunk, voice=voice, speed=speed, split_pattern=r"\n{2,}")
 
         chunk_wavs: list[np.ndarray] = []
@@ -79,6 +92,15 @@ def synthesize_chunks(
             raise RuntimeError(f"No audio produced for chunk {index}.")
 
         wavs.append(np.concatenate(chunk_wavs))
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "stage": "synthesized",
+                    "current": index,
+                    "total": len(chunk_list),
+                    "message": f"Finished chunk {index} of {len(chunk_list)}.",
+                }
+            )
 
     return wavs
 

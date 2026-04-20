@@ -3,12 +3,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
 import traceback
+import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from generation import (
     DEFAULT_LANG_CODE,
@@ -30,6 +34,63 @@ class ServerConfig:
     host: str
     port: int
     output_dir: Path
+
+
+@dataclass
+class GenerationJob:
+    id: str
+    status: str
+    progress: dict[str, Any]
+    result: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class JobStore:
+    def __init__(self) -> None:
+        self._jobs: dict[str, GenerationJob] = {}
+        self._lock = threading.Lock()
+
+    def create(self) -> GenerationJob:
+        job = GenerationJob(
+            id=uuid.uuid4().hex,
+            status="queued",
+            progress={
+                "stage": "queued",
+                "current": 0,
+                "total": None,
+                "message": "Waiting to start.",
+            },
+        )
+        with self._lock:
+            self._jobs[job.id] = job
+        return job
+
+    def update(
+        self,
+        job_id: str,
+        *,
+        status: str | None = None,
+        progress: dict[str, Any] | None = None,
+        result: dict[str, Any] | None = None,
+        error: str | None = None,
+    ) -> None:
+        with self._lock:
+            job = self._jobs[job_id]
+            if status is not None:
+                job.status = status
+            if progress is not None:
+                job.progress = progress
+            if result is not None:
+                job.result = result
+            if error is not None:
+                job.error = error
+
+    def get(self, job_id: str) -> GenerationJob | None:
+        with self._lock:
+            return self._jobs.get(job_id)
+
+
+JOB_STORE = JobStore()
 
 
 class ApiError(Exception):
@@ -146,7 +207,11 @@ def result_to_payload(result: GenerationResult) -> dict[str, Any]:
     }
 
 
-def generate_from_payload(payload: dict[str, Any], config: ServerConfig) -> GenerationResult:
+def generate_from_payload(
+    payload: dict[str, Any],
+    config: ServerConfig,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+) -> GenerationResult:
     options = options_from_payload(payload, config)
     text = get_optional_string(payload, "text")
     input_path = get_optional_string(payload, "inputPath")
@@ -157,10 +222,16 @@ def generate_from_payload(payload: dict[str, Any], config: ServerConfig) -> Gene
     if text is not None:
         stem = get_string(payload, "stem", "lesson")
         suffix = get_string(payload, "suffix", ".md")
-        return generate_audio_from_text(text=text, stem=stem, suffix=suffix, options=options)
+        return generate_audio_from_text(
+            text=text,
+            stem=stem,
+            suffix=suffix,
+            options=options,
+            progress_callback=progress_callback,
+        )
 
     if input_path is not None:
-        return generate_audio(resolve_input_path(input_path), options)
+        return generate_audio(resolve_input_path(input_path), options, progress_callback=progress_callback)
 
     raise ApiError(HTTPStatus.BAD_REQUEST, "Request must include text or inputPath.")
 
@@ -169,7 +240,14 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
     class AudioRequestHandler(BaseHTTPRequestHandler):
         server_version = "AudiofierTTS/1.0"
 
+        def do_OPTIONS(self) -> None:
+            self.send_response(HTTPStatus.NO_CONTENT.value)
+            self.write_cors_headers()
+            self.end_headers()
+
         def do_GET(self) -> None:
+            parsed_path = urlparse(self.path)
+
             if self.path == "/health":
                 self.write_json(
                     HTTPStatus.OK,
@@ -183,9 +261,69 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
                 )
                 return
 
+            job_id = parsed_path.path.removeprefix("/generate-jobs/")
+            if parsed_path.path.startswith("/generate-jobs/") and job_id:
+                job = JOB_STORE.get(job_id)
+
+                if job is None:
+                    self.write_json(
+                        HTTPStatus.OK,
+                        {
+                            "ok": True,
+                            "jobId": job_id,
+                            "status": "failed",
+                            "progress": {
+                                "stage": "failed",
+                                "current": 0,
+                                "total": None,
+                                "message": "Generation job was not found. Restart the generation.",
+                            },
+                            "result": None,
+                            "error": "Generation job was not found. Restart the generation.",
+                        },
+                    )
+                    return
+
+                self.write_json(
+                    HTTPStatus.OK,
+                    {
+                        "ok": True,
+                        "jobId": job.id,
+                        "status": job.status,
+                        "progress": job.progress,
+                        "result": job.result,
+                        "error": job.error,
+                    },
+                )
+                return
+
             self.write_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "Not found."})
 
         def do_POST(self) -> None:
+            if self.path == "/generate-jobs":
+                try:
+                    payload = self.read_json()
+                    job = JOB_STORE.create()
+                    thread = threading.Thread(target=self.run_generation_job, args=(job.id, payload), daemon=True)
+                    thread.start()
+                    self.write_json(
+                        HTTPStatus.ACCEPTED,
+                        {
+                            "ok": True,
+                            "jobId": job.id,
+                            "status": job.status,
+                            "progress": job.progress,
+                            "result": job.result,
+                            "error": job.error,
+                        },
+                    )
+                except ApiError as error:
+                    self.write_json(error.status, {"ok": False, "error": error.message})
+                except Exception as error:
+                    traceback.print_exc()
+                    self.write_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(error)})
+                return
+
             if self.path != "/generate":
                 self.write_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "Not found."})
                 return
@@ -201,6 +339,47 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
             except Exception as error:
                 traceback.print_exc()
                 self.write_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(error)})
+
+        def run_generation_job(self, job_id: str, payload: dict[str, Any]) -> None:
+            def update_progress(progress: dict[str, Any]) -> None:
+                JOB_STORE.update(job_id, status="running", progress=progress)
+
+            try:
+                JOB_STORE.update(
+                    job_id,
+                    status="running",
+                    progress={
+                        "stage": "starting",
+                        "current": 0,
+                        "total": None,
+                        "message": "Starting audio generation.",
+                    },
+                )
+                result = generate_from_payload(payload, config, progress_callback=update_progress)
+                JOB_STORE.update(
+                    job_id,
+                    status="succeeded",
+                    progress={
+                        "stage": "complete",
+                        "current": result.chunk_count,
+                        "total": result.chunk_count,
+                        "message": "Audio generation complete.",
+                    },
+                    result=result_to_payload(result),
+                )
+            except Exception as error:
+                traceback.print_exc()
+                JOB_STORE.update(
+                    job_id,
+                    status="failed",
+                    progress={
+                        "stage": "failed",
+                        "current": 0,
+                        "total": None,
+                        "message": str(error),
+                    },
+                    error=str(error),
+                )
 
         def read_json(self) -> dict[str, Any]:
             content_length = self.headers.get("Content-Length")
@@ -228,11 +407,20 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
 
         def write_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
             body = json.dumps(payload, indent=2).encode("utf-8")
-            self.send_response(status.value)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.send_response(status.value)
+                self.write_cors_headers()
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError, TimeoutError):
+                return
+
+        def write_cors_headers(self) -> None:
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
         def log_message(self, format: str, *args: Any) -> None:
             print(f"{self.address_string()} - {format % args}")

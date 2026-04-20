@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +9,7 @@ const root = path.resolve(scriptDir, "..");
 const venvDir = path.join(root, ".venv");
 const requirementsPath = path.join(root, "requirements.txt");
 const devRequirementsPath = path.join(root, "requirements-dev.txt");
+const dependencyStatePath = path.join(venvDir, ".audiofier-dependencies.json");
 const pythonPath =
   process.platform === "win32" ? path.join(venvDir, "Scripts", "python.exe") : path.join(venvDir, "bin", "python");
 
@@ -23,6 +25,29 @@ function run(command, args) {
   });
 
   return !result.error && result.status === 0;
+}
+
+function getRequirementsHash() {
+  const hash = createHash("sha256");
+  hash.update(readFileSync(requirementsPath));
+
+  if (existsSync(devRequirementsPath)) {
+    hash.update(readFileSync(devRequirementsPath));
+  }
+
+  return hash.digest("hex");
+}
+
+function readDependencyState() {
+  if (!existsSync(dependencyStatePath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(readFileSync(dependencyStatePath, "utf-8"));
+  } catch {
+    return null;
+  }
 }
 
 function isMovedVenv() {
@@ -54,6 +79,14 @@ if (!existsSync(pythonPath)) {
   }
 }
 
+const requirementsHash = getRequirementsHash();
+const dependencyState = readDependencyState();
+
+if (dependencyState?.requirementsHash === requirementsHash) {
+  console.log("Python dependencies are up to date.");
+  process.exit(0);
+}
+
 if (!run(pythonPath, ["-m", "pip", "install", "--upgrade", "pip"])) {
   process.exit(1);
 }
@@ -65,3 +98,16 @@ if (!run(pythonPath, ["-m", "pip", "install", "-r", requirementsPath])) {
 if (existsSync(devRequirementsPath) && !run(pythonPath, ["-m", "pip", "install", "-r", devRequirementsPath])) {
   process.exit(1);
 }
+
+writeFileSync(
+  dependencyStatePath,
+  `${JSON.stringify(
+    {
+      requirementsHash,
+      updatedAt: new Date().toISOString(),
+    },
+    null,
+    2
+  )}\n`,
+  "utf-8"
+);
