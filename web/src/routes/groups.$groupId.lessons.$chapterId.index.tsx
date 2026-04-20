@@ -6,9 +6,8 @@ import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import RoutePending from "../components/route-pending";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Badge } from "../components/ui/badge";
 import { Button, buttonVariants } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -17,31 +16,13 @@ import { generateChapterAudio, getAudioGroupDetails, getChapterDetails } from ".
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
   loader: async ({ params }) => {
     const [groupDetails, chapter] = await Promise.all([
-      getAudioGroupDetails({
-        data: {
-          groupId: params.groupId,
-        },
-      }),
-      getChapterDetails({
-        data: {
-          groupId: params.groupId,
-          chapterId: params.chapterId,
-        },
-      }),
+      getAudioGroupDetails({ data: { groupId: params.groupId } }),
+      getChapterDetails({ data: { groupId: params.groupId, chapterId: params.chapterId } }),
     ]);
-
     if (!groupDetails || !chapter) {
-      throw notFound({
-        data: {
-          message: "That lesson does not exist.",
-        },
-      });
+      throw notFound({ data: { message: "That lesson does not exist." } });
     }
-
-    return {
-      group: groupDetails.group,
-      chapter,
-    };
+    return { group: groupDetails.group, chapter };
   },
   pendingComponent: RoutePending,
   errorComponent: RouteError,
@@ -64,16 +45,9 @@ function LessonIndexPage() {
     setIsGenerating(true);
     setNotice(null);
     setError(null);
-
     try {
       const generated = await generateChapterAudio({
-        data: {
-          groupId: group.id,
-          chapterId: chapter.id,
-          voice,
-          speed,
-          wavOnly,
-        },
+        data: { groupId: group.id, chapterId: chapter.id, voice, speed, wavOnly },
       });
       await router.invalidate({ sync: true });
       setGeneratedAudio(generated.generatedAudio);
@@ -92,12 +66,23 @@ function LessonIndexPage() {
         to="/groups/$groupId"
         params={{ groupId: group.id }}
       >
-        Back to group
+        ← Back to group
       </Link>
+
       <header className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div>
-          <p className="text-sm font-bold uppercase text-primary">Lesson {chapter.order}</p>
-          <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{chapter.title}</h1>
+          <p
+            className="text-xs font-semibold uppercase tracking-widest mb-2"
+            style={{ color: "var(--primary)", fontFamily: "'IBM Plex Mono', monospace" }}
+          >
+            Lesson {chapter.order}
+          </p>
+          <h1
+            className="mt-0 max-w-3xl text-3xl md:text-5xl font-bold"
+            style={{ fontFamily: "Syne, sans-serif", letterSpacing: "-0.03em" }}
+          >
+            {chapter.title}
+          </h1>
         </div>
         <Link
           className={buttonVariants({ variant: "outline" })}
@@ -111,78 +96,179 @@ function LessonIndexPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <MarkdownPreview markdown={chapter.markdown} />
 
-        <Card className="rounded-lg" role="complementary" aria-label="Audio settings">
-          <CardHeader>
-            <CardTitle>Audio settings</CardTitle>
-            <CardDescription>Generate audio for this lesson.</CardDescription>
+        {/* Audio settings panel */}
+        <Card
+          className="rounded-xl"
+          role="complementary"
+          aria-label="Audio settings"
+          style={{ background: "var(--card)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <CardHeader className="border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+            <CardTitle style={{ fontFamily: "Syne, sans-serif" }}>Audio Settings</CardTitle>
+            <CardDescription>Generate TTS audio for this lesson.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="voice">Voice</Label>
-              <Input id="voice" value={voice} onChange={(event) => setVoice(event.target.value)} />
-            </div>
 
+          <CardContent className="grid gap-5 pt-5">
+            {/* Voice */}
             <div className="grid gap-2">
-              <Label htmlFor="speed">Speed</Label>
+              <Label
+                htmlFor="voice"
+                className="text-xs uppercase tracking-wider"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+              >
+                Voice
+              </Label>
               <Input
-                id="speed"
-                type="number"
-                min="0.5"
-                max="2"
-                step="0.05"
-                value={speed}
-                onChange={(event) => setSpeed(Number(event.target.value))}
+                id="voice"
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
+                style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
               />
             </div>
 
-            <Label className="flex items-center gap-2">
+            {/* Speed */}
+            <div className="grid gap-2">
+              <Label
+                htmlFor="speed"
+                className="text-xs uppercase tracking-wider"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+              >
+                Speed
+              </Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="speed"
+                  type="number"
+                  min="0.5"
+                  max="2"
+                  step="0.05"
+                  value={speed}
+                  onChange={(e) => setSpeed(Number(e.target.value))}
+                  className="w-24"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
+                />
+                {/* Visual speed bar */}
+                <div
+                  className="flex-1 h-1.5 rounded-full overflow-hidden"
+                  style={{ background: "rgba(255,255,255,0.08)" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${((speed - 0.5) / 1.5) * 100}%`,
+                      background: "linear-gradient(90deg, #e8963a, #f5b86a)",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* WAV only */}
+            <Label className="flex items-center gap-3 cursor-pointer select-none">
               <Checkbox checked={wavOnly} onCheckedChange={(checked) => setWavOnly(Boolean(checked))} />
-              WAV only
+              <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                WAV only
+                <span
+                  className="block text-xs mt-0.5"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.7rem", opacity: 0.6 }}
+                >
+                  skip MP3 encoding
+                </span>
+              </span>
             </Label>
 
-            <Button type="button" onClick={generateAudio} disabled={isGenerating}>
-              {isGenerating ? "Generating..." : "Generate audio"}
+            {/* Generate button */}
+            <Button
+              className="btn-generate w-full font-semibold tracking-wide"
+              type="button"
+              onClick={generateAudio}
+              disabled={isGenerating}
+              style={{ fontFamily: "Syne, sans-serif", letterSpacing: "0.03em" }}
+            >
+              {isGenerating ? (
+                <span className="flex items-center gap-2">
+                  <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                  Generating…
+                </span>
+              ) : (
+                "Generate Audio"
+              )}
             </Button>
 
-            {generatedAudio ? (
-              <Card className="rounded-lg bg-muted/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    Last generated
-                    <Badge variant="secondary">{generatedAudio.formattedDuration}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <dl className="grid gap-3">
-                    <div className="grid gap-1">
-                      <dt className="text-xs font-semibold uppercase text-muted-foreground">Output</dt>
-                      <dd className="[overflow-wrap:anywhere]">{generatedAudio.lessonOutputDir}</dd>
-                    </div>
-                    <div className="grid gap-1">
-                      <dt className="text-xs font-semibold uppercase text-muted-foreground">WAV</dt>
-                      <dd className="[overflow-wrap:anywhere]">{generatedAudio.wavPath}</dd>
-                    </div>
-                    {generatedAudio.mp3Path ? (
-                      <div className="grid gap-1">
-                        <dt className="text-xs font-semibold uppercase text-muted-foreground">MP3</dt>
-                        <dd className="[overflow-wrap:anywhere]">{generatedAudio.mp3Path}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                </CardContent>
-              </Card>
-            ) : null}
+            {/* Last generated result */}
+            {generatedAudio && (
+              <div
+                className="rounded-lg p-4 grid gap-3"
+                style={{ background: "rgba(232,150,58,0.06)", border: "1px solid rgba(232,150,58,0.15)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--primary)" }}
+                  >
+                    Last Generated
+                  </span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{
+                      background: "rgba(232,150,58,0.15)",
+                      color: "var(--primary)",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                    }}
+                  >
+                    {generatedAudio.formattedDuration}
+                  </span>
+                </div>
 
-            {notice ? (
+                <dl className="grid gap-2.5">
+                  {[
+                    { label: "output", value: generatedAudio.lessonOutputDir },
+                    { label: "wav", value: generatedAudio.wavPath },
+                    ...(generatedAudio.mp3Path ? [{ label: "mp3", value: generatedAudio.mp3Path }] : []),
+                  ].map(({ label, value }) => (
+                    <div key={label} className="grid gap-0.5">
+                      <dt
+                        className="text-xs uppercase"
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          color: "var(--muted-foreground)",
+                          fontSize: "0.65rem",
+                          letterSpacing: "0.08em",
+                        }}
+                      >
+                        {label}
+                      </dt>
+                      <dd
+                        className="text-xs break-all leading-relaxed"
+                        style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--foreground)", opacity: 0.8 }}
+                      >
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <div
+                  className="flex gap-3 text-xs"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                >
+                  <span>{generatedAudio.chunkCount} chunks</span>
+                  <span>·</span>
+                  <span>{generatedAudio.cleanedCharacterCount.toLocaleString()} chars</span>
+                </div>
+              </div>
+            )}
+
+            {notice && (
               <Alert>
-                <AlertDescription>{notice}</AlertDescription>
+                <AlertDescription className="text-sm">{notice}</AlertDescription>
               </Alert>
-            ) : null}
-            {error ? (
+            )}
+            {error && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="text-sm">{error}</AlertDescription>
               </Alert>
-            ) : null}
+            )}
           </CardContent>
         </Card>
       </div>

@@ -4,18 +4,53 @@ import { buttonVariants } from "./ui/button";
 
 export default function AppHeader() {
   return (
-    <header className="border-b bg-card/90">
-      <div className="mx-auto flex min-h-18 w-[min(1380px,calc(100%-32px))] items-center justify-between gap-4 py-3 max-sm:grid max-sm:w-[min(100%-20px,1380px)]">
+    <header
+      className="relative z-10 border-b"
+      style={{
+        background: "rgba(13,16,22,0.92)",
+        backdropFilter: "blur(12px)",
+        borderColor: "rgba(255,255,255,0.08)",
+      }}
+    >
+      {/* Amber accent stripe */}
+      <div
+        className="absolute top-0 left-0 right-0 h-px"
+        style={{
+          background: "linear-gradient(90deg, transparent 0%, #e8963a 25%, #f5b86a 50%, #e8963a 75%, transparent 100%)",
+          opacity: 0.6,
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="mx-auto flex min-h-16 w-[min(1380px,calc(100%-32px))] items-center justify-between gap-4 py-3 max-sm:grid max-sm:w-[min(100%-20px,1380px)]">
         <Link className="flex min-w-0 items-center gap-3 text-foreground no-underline" to="/">
+          {/* Logo mark */}
           <span
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-black"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-black"
+            style={{
+              background: "linear-gradient(135deg, #e8963a, #c97c2e)",
+              color: "#0f1117",
+              fontFamily: "'IBM Plex Mono', monospace",
+              letterSpacing: "-0.04em",
+              boxShadow: "0 0 16px rgba(232,150,58,0.3)",
+            }}
             aria-hidden="true"
           >
-            A
+            A/
           </span>
           <span>
-            <strong className="block text-base">Audiofier</strong>
-            <small className="mt-0.5 block text-sm font-semibold text-muted-foreground">Lesson audio workspace</small>
+            <strong
+              className="block text-sm font-bold tracking-tight"
+              style={{ fontFamily: "Syne, sans-serif", letterSpacing: "-0.02em" }}
+            >
+              Audiofier
+            </strong>
+            <small
+              className="block text-xs"
+              style={{ color: "rgba(232,150,58,0.7)", fontFamily: "IBM Plex Mono, monospace" }}
+            >
+              tts · workspace
+            </small>
           </span>
         </Link>
 
