@@ -48,7 +48,7 @@ export async function writeJson(filePath: string, value: unknown) {
 export async function uniqueId(
   base: string,
   exists: (id: string) => Promise<boolean>,
-  options?: { fallback?: string; maxAttempts?: number; maxLength?: number },
+  options?: { fallback?: string; maxAttempts?: number; maxLength?: number }
 ) {
   const stem = slugify(base, {
     fallback: options?.fallback,

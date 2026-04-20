@@ -75,7 +75,7 @@ async function listGroups(): Promise<AudioGroup[]> {
   const groups = await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
-      .map((entry) => readJson(groupMetaPath(entry.name), AudioGroupSchema).catch(() => null)),
+      .map((entry) => readJson(groupMetaPath(entry.name), AudioGroupSchema).catch(() => null))
   );
 
   return groups
@@ -97,7 +97,7 @@ async function listChapters(groupId: string): Promise<ChapterSummary[]> {
           ...meta,
           generatedAudio: await readGeneratedAudio(groupId, meta.id),
         };
-      }),
+      })
   );
 
   return chapters.sort((left, right) => left.order - right.order || left.title.localeCompare(right.title));
@@ -106,7 +106,7 @@ async function listChapters(groupId: string): Promise<ChapterSummary[]> {
 async function getLibrary(): Promise<LessonLibrary> {
   const groups = await listGroups();
   const chaptersByGroupEntries = await Promise.all(
-    groups.map(async (group) => [group.id, await listChapters(group.id)] as const),
+    groups.map(async (group) => [group.id, await listChapters(group.id)] as const)
   );
 
   return {

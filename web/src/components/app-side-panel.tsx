@@ -1,13 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
 
 import type { LessonLibrary } from "../lib/lesson-types";
-import { Badge } from "./ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { buttonVariants } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { ScrollArea } from "./ui/scroll-area";
-import { Separator } from "./ui/separator";
 
 interface Props {
   library: LessonLibrary;
@@ -31,60 +28,64 @@ export default function AppSidePanel({ library }: Props) {
           <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">No groups yet.</p>
         ) : (
           <ScrollArea className="h-full max-h-[calc(100vh-9rem)] pr-3 max-lg:max-h-none">
-            <nav className="grid gap-3" aria-label="Audio groups and lessons">
-              {library.groups.map((group) => {
-                const chapters = library.chaptersByGroup[group.id] ?? [];
+            <nav aria-label="Audio groups and lessons">
+              <Accordion className="gap-1" multiple defaultValue={library.groups.map((group) => group.id)}>
+                {library.groups.map((group) => {
+                  const chapters = library.chaptersByGroup[group.id] ?? [];
 
-                return (
-                  <Collapsible className="rounded-lg border bg-muted/30" key={group.id} defaultOpen>
-                    <CollapsibleTrigger className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-2 text-left">
-                      <span className="truncate font-semibold">{group.title}</span>
-                      <Badge variant="secondary">{chapters.length}</Badge>
-                      <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="grid gap-1 px-2 pb-2">
-                      <Separator className="mb-1" />
-                      <Link
-                        className="rounded-lg px-2 py-2 text-sm font-medium text-foreground no-underline hover:bg-muted"
-                        to="/groups/$groupId"
-                        params={{ groupId: group.id }}
-                        activeProps={{ className: "rounded-lg bg-muted px-2 py-2 text-sm font-medium text-foreground" }}
-                        activeOptions={{ exact: true }}
-                      >
-                        Group overview
-                      </Link>
+                  return (
+                    <AccordionItem className="border-0" key={group.id} value={group.id}>
+                      <AccordionTrigger className="py-1.5 font-semibold hover:no-underline">
+                        <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 pr-2">
+                          <span className="truncate">{group.title}</span>
+                          <span className="text-xs font-medium text-muted-foreground">{chapters.length}</span>
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="ml-1 grid gap-1 border-l pl-3 [&_a]:!no-underline">
+                        <Link
+                          className="py-1 text-sm font-medium text-muted-foreground no-underline hover:text-foreground"
+                          to="/groups/$groupId"
+                          params={{ groupId: group.id }}
+                          activeProps={{
+                            className: "py-1 text-sm font-semibold text-foreground no-underline",
+                          }}
+                          activeOptions={{ exact: true }}
+                        >
+                          {group.title}
+                        </Link>
 
-                      {chapters.length === 0 ? (
-                        <p className="rounded-lg px-2 py-2 text-sm text-muted-foreground">No lessons yet.</p>
-                      ) : (
-                        chapters.map((chapter) => (
-                          <Link
-                            className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-foreground no-underline hover:bg-muted"
-                            key={chapter.id}
-                            to="/groups/$groupId/lessons/$chapterId"
-                            params={{ groupId: group.id, chapterId: chapter.id }}
-                            activeProps={{
-                              className:
-                                "flex items-center gap-2 rounded-lg bg-muted px-2 py-2 text-sm font-medium text-foreground",
-                            }}
-                          >
-                            <Badge variant="outline">{chapter.order}</Badge>
-                            <span className="min-w-0 truncate">{chapter.title}</span>
-                          </Link>
-                        ))
-                      )}
+                        {chapters.length === 0 ? (
+                          <p className="py-1 text-sm text-muted-foreground">No lessons yet.</p>
+                        ) : (
+                          chapters.map((chapter) => (
+                            <Link
+                              className="flex items-center gap-2 py-1 text-sm text-muted-foreground no-underline hover:text-foreground"
+                              key={chapter.id}
+                              to="/groups/$groupId/lessons/$chapterId"
+                              params={{ groupId: group.id, chapterId: chapter.id }}
+                              activeProps={{
+                                className:
+                                  "flex items-center gap-2 py-1 text-sm font-semibold text-foreground no-underline",
+                              }}
+                            >
+                              <span className="w-5 shrink-0 text-xs">{chapter.order}</span>
+                              <span className="min-w-0 truncate">{chapter.title}</span>
+                            </Link>
+                          ))
+                        )}
 
-                      <Link
-                        className="rounded-lg px-2 py-2 text-sm font-semibold text-primary no-underline hover:bg-muted"
-                        to="/groups/$groupId/lessons/new"
-                        params={{ groupId: group.id }}
-                      >
-                        Add lesson
-                      </Link>
-                    </CollapsibleContent>
-                  </Collapsible>
-                );
-              })}
+                        <Link
+                          className="py-1 text-sm font-semibold text-primary no-underline hover:text-primary/80"
+                          to="/groups/$groupId/lessons/new"
+                          params={{ groupId: group.id }}
+                        >
+                          Add lesson
+                        </Link>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             </nav>
           </ScrollArea>
         )}
