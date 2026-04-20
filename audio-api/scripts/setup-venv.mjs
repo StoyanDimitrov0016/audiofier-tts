@@ -7,6 +7,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, "..");
 const venvDir = path.join(root, ".venv");
 const requirementsPath = path.join(root, "requirements.txt");
+const devRequirementsPath = path.join(root, "requirements-dev.txt");
 const pythonPath =
   process.platform === "win32" ? path.join(venvDir, "Scripts", "python.exe") : path.join(venvDir, "bin", "python");
 
@@ -58,5 +59,9 @@ if (!run(pythonPath, ["-m", "pip", "install", "--upgrade", "pip"])) {
 }
 
 if (!run(pythonPath, ["-m", "pip", "install", "-r", requirementsPath])) {
+  process.exit(1);
+}
+
+if (existsSync(devRequirementsPath) && !run(pythonPath, ["-m", "pip", "install", "-r", devRequirementsPath])) {
   process.exit(1);
 }

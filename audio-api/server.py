@@ -11,12 +11,11 @@ if str(SRC) not in sys.path:
 
 from audio_server import main
 
-
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        raise SystemExit(130)
+        raise SystemExit(130) from None
     except Exception as error:
         print(f"Error: {error}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from error

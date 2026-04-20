@@ -1,0 +1,12 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [".venv", "output"]
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"audio.py" = ["E402"]
+"server.py" = ["E402"]
+"tests/test_audio.py" = ["E402"]

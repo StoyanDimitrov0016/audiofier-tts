@@ -16,9 +16,9 @@
     "dev:web": "turbo dev --filter=audiofier-web --env-mode=loose",
     "setup:audio": "npm run setup:venv -w audiofier-audio-api",
     "build": "turbo build",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "format": "prettier --write . && npm run format -w audiofier-audio-api",
+    "format:check": "prettier --check . && npm run format:check -w audiofier-audio-api",
+    "lint": "eslint . && npm run lint -w audiofier-audio-api",
     "typecheck": "turbo typecheck",
     "test": "turbo test"
   },

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import json
+import sys
+import traceback
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import json
 from pathlib import Path
-import sys
-import traceback
 from typing import Any
 
 from generation import (

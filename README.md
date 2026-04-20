@@ -56,7 +56,7 @@ The shortest setup path from the repository root is:
 npm run setup:audio
 ```
 
-That command creates `audio-api/.venv` when it is missing and installs `audio-api/requirements.txt`.
+That command creates `audio-api/.venv` when it is missing and installs `audio-api/requirements.txt` plus the Python dev tools in `audio-api/requirements-dev.txt`.
 
 ### Git Bash Setup
 
@@ -157,12 +157,14 @@ npm run dev:web
 Check the workspace before committing:
 
 ```powershell
+npm run format:check
+npm run lint
 npm run typecheck
 npm run test
 npm run build
 ```
 
-`typecheck` compiles the Python files and checks the web app. `test` runs the Python regression tests. `build` runs the web production build and the Python compile check.
+`format:check` runs Prettier and Ruff formatting checks. `lint` runs ESLint and Ruff. `typecheck` compiles the Python files and checks the web app. `test` runs the Python regression tests. `build` runs the web production build and the Python compile check.
 
 ## Lesson Storage
 

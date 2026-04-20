@@ -1,8 +1,8 @@
 import os
-from pathlib import Path
-from types import ModuleType
 import sys
 import unittest
+from pathlib import Path
+from types import ModuleType
 from unittest.mock import patch
 
 import numpy as np
@@ -184,7 +184,7 @@ class SynthesisTests(unittest.TestCase):
                 yield None, None, np.array([0.1, 0.2], dtype=np.float32)
                 yield None, None, np.array([0.3], dtype=np.float32)
 
-        setattr(fake_module, "KPipeline", FakePipeline)
+        fake_module.__dict__["KPipeline"] = FakePipeline
 
         with patch.dict(sys.modules, {"kokoro": fake_module}):
             wavs = synthesize_chunks(
