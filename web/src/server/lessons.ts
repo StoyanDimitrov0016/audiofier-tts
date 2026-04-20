@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { callAudioGeneration, startAudioGenerationJob } from "./audio-api";
+import { callAudioGeneration, getAudioVoices, startAudioGenerationJob } from "./audio-api";
 import {
   CreateChapterInputSchema,
   CreateGroupInputSchema,
@@ -143,6 +143,7 @@ export const generateChapterAudio = createServerFn({ method: "POST" })
       stem: chapter.id,
       suffix: ".md",
       voice: data.voice,
+      langCode: data.langCode,
       speed: data.speed,
       wavOnly: data.wavOnly,
       outputDir: lessonRepository.getGroupGeneratedOutputDir(chapter.groupId),
@@ -168,6 +169,7 @@ export const startChapterAudioGeneration = createServerFn({ method: "POST" })
       stem: chapter.id,
       suffix: ".md",
       voice: data.voice,
+      langCode: data.langCode,
       speed: data.speed,
       wavOnly: data.wavOnly,
       outputDir: lessonRepository.getGroupGeneratedOutputDir(chapter.groupId),
@@ -190,3 +192,7 @@ export const saveChapterAudioGenerationResult = createServerFn({ method: "POST" 
       generatedAudio,
     };
   });
+
+export const getAvailableAudioVoices = createServerFn({ method: "GET" }).handler(async () => {
+  return getAudioVoices();
+});

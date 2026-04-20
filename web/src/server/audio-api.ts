@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  AudioVoicesResponseSchema,
   GenerateAudioInputSchema,
   GenerateAudioJobStatusSchema,
   GenerateAudioResultSchema,
@@ -61,4 +62,9 @@ export async function startAudioGenerationJob(input: GenerateAudioInput) {
   });
 
   return readAudioResponse(response, GenerateAudioJobStatusSchema);
+}
+
+export async function getAudioVoices() {
+  const response = await fetch(`${getAudioApiUrl()}/voices`);
+  return readAudioResponse(response, AudioVoicesResponseSchema);
 }

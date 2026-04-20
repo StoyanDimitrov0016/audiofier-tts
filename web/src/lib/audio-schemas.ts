@@ -5,6 +5,7 @@ export const GenerateAudioInputSchema = z.object({
   stem: z.string().trim().min(1, "Lesson name is required."),
   suffix: z.enum([".md", ".txt"]),
   voice: z.string().trim().min(1, "Voice is required."),
+  langCode: z.string().trim().min(1, "Language code is required.").optional(),
   speed: z.number().positive("Speed must be greater than 0."),
   wavOnly: z.boolean(),
   outputDir: z.string().trim().min(1).optional(),
@@ -35,4 +36,19 @@ export const GenerateAudioJobStatusSchema = z.object({
   progress: GenerateAudioProgressSchema,
   result: GenerateAudioResultSchema.nullable(),
   error: z.string().nullable(),
+});
+
+export const AudioVoiceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  lang_code: z.string(),
+  language: z.string(),
+  gender: z.string(),
+  grade: z.string().nullable(),
+});
+
+export const AudioVoicesResponseSchema = z.object({
+  ok: z.literal(true),
+  defaultVoice: z.string(),
+  voices: z.array(AudioVoiceSchema),
 });

@@ -9,12 +9,22 @@ import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button, buttonVariants } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Checkbox } from "../components/ui/checkbox";
-import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { Slider } from "../components/ui/slider";
 import { getAudioGenerationJob } from "../lib/audio-api-client";
-import type { GenerateAudioProgress } from "../lib/audio-types";
+import type { AudioVoice, GenerateAudioProgress } from "../lib/audio-types";
 import {
   getAudioGroupDetails,
+  getAvailableAudioVoices,
   getChapterDetails,
   saveChapterAudioGenerationResult,
   startChapterAudioGeneration,
@@ -22,14 +32,15 @@ import {
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
   loader: async ({ params }) => {
-    const [groupDetails, chapter] = await Promise.all([
+    const [groupDetails, chapter, voices] = await Promise.all([
       getAudioGroupDetails({ data: { groupId: params.groupId } }),
       getChapterDetails({ data: { groupId: params.groupId, chapterId: params.chapterId } }),
+      getAvailableAudioVoices(),
     ]);
     if (!groupDetails || !chapter) {
       throw notFound({ data: { message: "That lesson does not exist." } });
     }
-    return { group: groupDetails.group, chapter };
+    return { group: groupDetails.group, chapter, voices };
   },
   pendingComponent: RoutePending,
   errorComponent: RouteError,
@@ -38,9 +49,9 @@ export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
 });
 
 function LessonIndexPage() {
-  const { group, chapter } = Route.useLoaderData();
+  const { group, chapter, voices } = Route.useLoaderData();
   const router = useRouter();
-  const [voice, setVoice] = useState("af_heart");
+  const [voice, setVoice] = useState(voices.defaultVoice);
   const [speed, setSpeed] = useState(1);
   const [wavOnly, setWavOnly] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -56,6 +67,14 @@ function LessonIndexPage() {
       : isGenerating
         ? 8
         : 0;
+
+  const selectedVoice =
+    voices.voices.find((availableVoice: AudioVoice) => availableVoice.id === voice) ?? voices.voices[0];
+  const voicesByLanguage = voices.voices.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
+    groups[availableVoice.language] ??= [];
+    groups[availableVoice.language].push(availableVoice);
+    return groups;
+  }, {});
 
   function wait(milliseconds: number) {
     return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -74,7 +93,14 @@ function LessonIndexPage() {
 
     try {
       const started = await startChapterAudioGeneration({
-        data: { groupId: group.id, chapterId: chapter.id, voice, speed, wavOnly },
+        data: {
+          groupId: group.id,
+          chapterId: chapter.id,
+          voice,
+          langCode: selectedVoice?.lang_code,
+          speed,
+          wavOnly,
+        },
       });
 
       setGenerationProgress(started.progress);
@@ -200,73 +226,98 @@ function LessonIndexPage() {
               ) : null}
             </div>
 
-            {/* Voice */}
-            <div className="grid gap-2">
-              <Label
-                htmlFor="voice"
-                className="text-xs uppercase tracking-wider"
-                style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
-              >
-                Voice
-              </Label>
-              <Input
-                id="voice"
-                value={voice}
-                onChange={(e) => setVoice(e.target.value)}
-                style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
-              />
-            </div>
-
-            {/* Speed */}
-            <div className="grid gap-2">
-              <Label
-                htmlFor="speed"
-                className="text-xs uppercase tracking-wider"
-                style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
-              >
-                Speed
-              </Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="speed"
-                  type="number"
-                  min="0.5"
-                  max="2"
-                  step="0.05"
-                  value={speed}
-                  onChange={(e) => setSpeed(Number(e.target.value))}
-                  className="w-24"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
-                />
-                {/* Visual speed bar */}
-                <div
-                  className="flex-1 h-1.5 rounded-full overflow-hidden"
-                  style={{ background: "rgba(255,255,255,0.08)" }}
+            <div className="grid gap-4 sm:grid-cols-[minmax(80px,0.75fr)_minmax(0,180px)_auto] sm:items-center">
+              <div className="order-2 flex items-center gap-2">
+                <Label
+                  htmlFor="voice"
+                  className="sr-only"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
                 >
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${((speed - 0.5) / 1.5) * 100}%`,
-                      background: "linear-gradient(90deg, #e8963a, #f5b86a)",
-                    }}
-                  />
+                  Voice
+                </Label>
+                <Select
+                  value={voice}
+                  onValueChange={(nextVoice) => {
+                    if (nextVoice) {
+                      setVoice(nextVoice);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    id="voice"
+                    className="w-full"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(voicesByLanguage).map(([language, languageVoices]) => (
+                      <SelectGroup key={language}>
+                        <SelectLabel>{language}</SelectLabel>
+                        {languageVoices.map((availableVoice) => (
+                          <SelectItem key={availableVoice.id} value={availableVoice.id}>
+                            {availableVoice.name} ({availableVoice.id}
+                            {availableVoice.grade ? `, ${availableVoice.grade}` : ""})
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedVoice ? (
+                  <p
+                    className="hidden text-xs"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                  >
+                    {selectedVoice.language} · {selectedVoice.gender}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="order-1 flex items-center gap-2">
+                <div className="order-2 flex shrink-0 items-center gap-2">
+                  <Label
+                    htmlFor="speed"
+                    className="sr-only"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                  >
+                    Speed
+                  </Label>
+                  <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                    {speed.toFixed(2)}x
+                  </span>
+                </div>
+                <Slider
+                  id="speed"
+                  className="order-1 min-w-24 flex-1"
+                  min={0.25}
+                  max={2}
+                  step={0.05}
+                  value={[speed]}
+                  onValueChange={(value) => {
+                    const nextSpeed = Array.isArray(value) ? value[0] : value;
+
+                    if (typeof nextSpeed === "number") {
+                      setSpeed(nextSpeed);
+                    }
+                  }}
+                />
+                <div
+                  className="hidden justify-between text-xs"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                >
+                  <span>0.25x</span>
+                  <span>2x</span>
                 </div>
               </div>
-            </div>
 
-            {/* WAV only */}
-            <Label className="flex items-center gap-3 cursor-pointer select-none">
-              <Checkbox checked={wavOnly} onCheckedChange={(checked) => setWavOnly(Boolean(checked))} />
-              <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                WAV only
-                <span
-                  className="block text-xs mt-0.5"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.7rem", opacity: 0.6 }}
-                >
-                  skip MP3 encoding
+              <Label className="order-3 flex cursor-pointer select-none items-center gap-2">
+                <Checkbox checked={wavOnly} onCheckedChange={(checked) => setWavOnly(Boolean(checked))} />
+                <span className="whitespace-nowrap text-sm" style={{ color: "var(--muted-foreground)" }}>
+                  WAV-only
                 </span>
-              </span>
-            </Label>
+              </Label>
+            </div>
 
             {/* Generate button */}
             <Button

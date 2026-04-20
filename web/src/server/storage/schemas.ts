@@ -54,6 +54,7 @@ export const GenerateChapterInputSchema = z.object({
   groupId: StorageIdSchema,
   chapterId: StorageIdSchema,
   voice: z.string().trim().min(1, "Voice is required."),
+  langCode: z.string().trim().min(1, "Language code is required.").optional(),
   speed: z.number().positive("Speed must be greater than 0."),
   wavOnly: z.boolean(),
 });

@@ -24,6 +24,7 @@ from generation import (
     generate_audio_from_text,
     validate_generation_options,
 )
+from voices import DEFAULT_VOICE_ID, list_voices
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MAX_REQUEST_BYTES = 2_000_000
@@ -257,6 +258,17 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
                         "projectRoot": str(PROJECT_ROOT),
                         "outputDir": display_path(config.output_dir),
                         "pythonExecutable": sys.executable,
+                    },
+                )
+                return
+
+            if self.path == "/voices":
+                self.write_json(
+                    HTTPStatus.OK,
+                    {
+                        "ok": True,
+                        "defaultVoice": DEFAULT_VOICE_ID,
+                        "voices": list_voices(),
                     },
                 )
                 return
