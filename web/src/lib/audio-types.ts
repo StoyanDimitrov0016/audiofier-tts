@@ -1,20 +1,16 @@
-export type GenerateAudioInput = {
-  text: string;
-  stem: string;
-  suffix: ".md" | ".txt";
-  voice: string;
-  speed: number;
-  wavOnly: boolean;
-  outputDir?: string;
-};
+import type { z } from "zod";
 
-export type GenerateAudioResult = {
-  ok: true;
-  lessonOutputDir: string;
-  wavPath: string;
-  mp3Path: string | null;
-  chunkCount: number;
-  cleanedCharacterCount: number;
-  durationSeconds: number;
-  formattedDuration: string;
-};
+import type {
+  GenerateAudioInputSchema,
+  GenerateAudioJobStatusSchema,
+  GenerateAudioProgressSchema,
+  GenerateAudioResultSchema,
+} from "./audio-schemas";
+
+export type GenerateAudioInput = z.infer<typeof GenerateAudioInputSchema>;
+
+export type GenerateAudioResult = z.infer<typeof GenerateAudioResultSchema>;
+
+export type GenerateAudioProgress = z.infer<typeof GenerateAudioProgressSchema>;
+
+export type GenerateAudioJobStatus = z.infer<typeof GenerateAudioJobStatusSchema>;

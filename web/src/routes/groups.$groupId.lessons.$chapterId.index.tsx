@@ -11,7 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { generateChapterAudio, getAudioGroupDetails, getChapterDetails } from "../server/lessons";
+import { getAudioGenerationJob } from "../lib/audio-api-client";
+import type { GenerateAudioProgress } from "../lib/audio-types";
+import {
+  getAudioGroupDetails,
+  getChapterDetails,
+  saveChapterAudioGenerationResult,
+  startChapterAudioGeneration,
+} from "../server/lessons";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
   loader: async ({ params }) => {
@@ -38,24 +45,82 @@ function LessonIndexPage() {
   const [wavOnly, setWavOnly] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAudio, setGeneratedAudio] = useState(chapter.generatedAudio);
+  const [generationProgress, setGenerationProgress] = useState<GenerateAudioProgress | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
+
+  const progressPercent =
+    generationProgress?.total && generationProgress.total > 0
+      ? Math.min(100, Math.round((generationProgress.current / generationProgress.total) * 100))
+      : isGenerating
+        ? 8
+        : 0;
+
+  function wait(milliseconds: number) {
+    return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+  }
 
   async function generateAudio() {
     setIsGenerating(true);
+    setGenerationProgress({
+      stage: "starting",
+      current: 0,
+      total: null,
+      message: "Starting audio generation.",
+    });
     setNotice(null);
     setError(null);
+
     try {
-      const generated = await generateChapterAudio({
+      const started = await startChapterAudioGeneration({
         data: { groupId: group.id, chapterId: chapter.id, voice, speed, wavOnly },
       });
-      await router.invalidate({ sync: true });
-      setGeneratedAudio(generated.generatedAudio);
-      setNotice(`Audio stored in ${generated.generatedAudio.lessonOutputDir}.`);
+
+      setGenerationProgress(started.progress);
+
+      while (true) {
+        await wait(800);
+        const polled = await getAudioGenerationJob(started.jobId);
+
+        setGenerationProgress(polled.progress);
+
+        if (polled.status === "failed") {
+          throw new Error(polled.error ?? "Audio generation failed.");
+        }
+
+        if (polled.status === "succeeded" && polled.result) {
+          const saved = await saveChapterAudioGenerationResult({
+            data: {
+              groupId: group.id,
+              chapterId: chapter.id,
+              result: polled.result,
+            },
+          });
+
+          await router.invalidate({ sync: true });
+          setGeneratedAudio(saved.generatedAudio);
+          setNotice(`Audio stored in ${saved.generatedAudio.lessonOutputDir}.`);
+          return;
+        }
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Audio generation failed.");
     } finally {
       setIsGenerating(false);
+      setGenerationProgress(null);
+    }
+  }
+
+  async function copyMarkdownPath() {
+    setCopyNotice(null);
+    setError(null);
+
+    try {
+      await navigator.clipboard.writeText(chapter.markdownPath);
+      setCopyNotice("Markdown path copied.");
+    } catch {
+      setError("Could not copy markdown path.");
     }
   }
 
@@ -109,6 +174,32 @@ function LessonIndexPage() {
           </CardHeader>
 
           <CardContent className="grid gap-5 pt-5">
+            <div
+              className="grid gap-3 rounded-lg p-4"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <Label
+                className="text-xs uppercase tracking-wider"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+              >
+                Markdown location
+              </Label>
+              <p
+                className="break-all text-xs leading-relaxed"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--foreground)", opacity: 0.8 }}
+              >
+                {chapter.markdownPath}
+              </p>
+              <Button className="w-fit" type="button" variant="outline" size="sm" onClick={copyMarkdownPath}>
+                Copy path
+              </Button>
+              {copyNotice ? (
+                <p className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--primary)" }}>
+                  {copyNotice}
+                </p>
+              ) : null}
+            </div>
+
             {/* Voice */}
             <div className="grid gap-2">
               <Label
@@ -194,6 +285,33 @@ function LessonIndexPage() {
                 "Generate Audio"
               )}
             </Button>
+
+            {isGenerating && generationProgress ? (
+              <div className="grid gap-2">
+                <div
+                  className="h-2 overflow-hidden rounded-full"
+                  style={{ background: "rgba(255,255,255,0.08)" }}
+                  role="progressbar"
+                  aria-valuenow={progressPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${progressPercent}%`,
+                      background: "linear-gradient(90deg, #e8963a, #f5b86a)",
+                    }}
+                  />
+                </div>
+                <p
+                  className="text-xs leading-relaxed"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                >
+                  {generationProgress.message}
+                </p>
+              </div>
+            ) : null}
 
             {/* Last generated result */}
             {generatedAudio && (

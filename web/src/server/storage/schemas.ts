@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { GenerateAudioResultSchema } from "../../lib/audio-schemas";
+
 const StorageIdSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9._-]{0,79}$/, "Use lowercase letters, numbers, dots, dashes, or underscores.");
@@ -54,6 +56,12 @@ export const GenerateChapterInputSchema = z.object({
   voice: z.string().trim().min(1, "Voice is required."),
   speed: z.number().positive("Speed must be greater than 0."),
   wavOnly: z.boolean(),
+});
+
+export const SaveChapterGenerationResultInputSchema = z.object({
+  groupId: StorageIdSchema,
+  chapterId: StorageIdSchema,
+  result: GenerateAudioResultSchema,
 });
 
 export const AudioGroupSchema = z.object({

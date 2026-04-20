@@ -10,7 +10,7 @@ import { ensureDir, nowIso, pathExists, readJson, uniqueId, writeJson } from "..
 const markdownGroupsRoot = path.join(storagePaths.storageRoot, "markdowns", "groups");
 const generatedGroupsRoot = path.join(storagePaths.storageRoot, "generated", "groups");
 
-type ChapterMeta = Omit<Chapter, "markdown" | "generatedAudio">;
+type ChapterMeta = Omit<Chapter, "markdown" | "markdownPath" | "generatedAudio">;
 
 function groupDir(groupId: string) {
   return path.join(markdownGroupsRoot, groupId);
@@ -49,10 +49,38 @@ async function ensureStorage() {
   await ensureDir(generatedGroupsRoot);
 }
 
+async function resolveGroupId(groupId: string): Promise<string | null> {
+  if (await pathExists(groupMetaPath(groupId))) {
+    return groupId;
+  }
+
+  await ensureStorage();
+
+  const entries = await fs.readdir(markdownGroupsRoot, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const group = await readJson(groupMetaPath(entry.name), AudioGroupSchema).catch(() => null);
+
+    if (group?.id === groupId) {
+      return entry.name;
+    }
+  }
+
+  return null;
+}
+
 async function assertGroupExists(groupId: string) {
-  if (!(await pathExists(groupMetaPath(groupId)))) {
+  const resolvedGroupId = await resolveGroupId(groupId);
+
+  if (!resolvedGroupId) {
     throw new Error(`Audio group not found: ${groupId}`);
   }
+
+  return resolvedGroupId;
 }
 
 async function readGeneratedAudio(groupId: string, chapterId: string): Promise<GeneratedAudio | null> {
@@ -62,11 +90,22 @@ async function readGeneratedAudio(groupId: string, chapterId: string): Promise<G
     return null;
   }
 
-  return readJson(filePath, GeneratedAudioSchema);
+  const generatedAudio = await readJson(filePath, GeneratedAudioSchema);
+
+  return {
+    ...generatedAudio,
+    groupId,
+    chapterId,
+  };
 }
 
 async function readChapterMeta(groupId: string, chapterId: string): Promise<ChapterMeta> {
-  return readJson(chapterMetaPath(groupId, chapterId), ChapterMetaSchema);
+  const meta = await readJson(chapterMetaPath(groupId, chapterId), ChapterMetaSchema);
+
+  return {
+    ...meta,
+    groupId,
+  };
 }
 
 async function listGroups(): Promise<AudioGroup[]> {
@@ -75,7 +114,14 @@ async function listGroups(): Promise<AudioGroup[]> {
   const groups = await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
-      .map((entry) => readJson(groupMetaPath(entry.name), AudioGroupSchema).catch(() => null))
+      .map((entry) =>
+        readJson(groupMetaPath(entry.name), AudioGroupSchema)
+          .then((group) => ({
+            ...group,
+            id: entry.name,
+          }))
+          .catch(() => null)
+      )
   );
 
   return groups
@@ -84,18 +130,23 @@ async function listGroups(): Promise<AudioGroup[]> {
 }
 
 async function listChapters(groupId: string): Promise<ChapterSummary[]> {
-  await assertGroupExists(groupId);
-  await ensureDir(chaptersDir(groupId));
+  const resolvedGroupId = await assertGroupExists(groupId);
+  await ensureDir(chaptersDir(resolvedGroupId));
 
-  const entries = await fs.readdir(chaptersDir(groupId), { withFileTypes: true });
+  const entries = await fs.readdir(chaptersDir(resolvedGroupId), { withFileTypes: true });
   const chapters = await Promise.all(
     entries
       .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
       .map(async (entry) => {
-        const meta = await readJson(path.join(chaptersDir(groupId), entry.name), ChapterMetaSchema);
-        return {
+        const meta = await readJson(path.join(chaptersDir(resolvedGroupId), entry.name), ChapterMetaSchema);
+        const chapter = {
           ...meta,
-          generatedAudio: await readGeneratedAudio(groupId, meta.id),
+          groupId: resolvedGroupId,
+        };
+
+        return {
+          ...chapter,
+          generatedAudio: await readGeneratedAudio(resolvedGroupId, chapter.id),
         };
       })
   );
@@ -116,16 +167,23 @@ async function getLibrary(): Promise<LessonLibrary> {
 }
 
 async function getGroup(groupId: string): Promise<AudioGroup> {
-  await assertGroupExists(groupId);
-  return readJson(groupMetaPath(groupId), AudioGroupSchema);
+  const resolvedGroupId = await assertGroupExists(groupId);
+  const group = await readJson(groupMetaPath(resolvedGroupId), AudioGroupSchema);
+
+  return {
+    ...group,
+    id: resolvedGroupId,
+  };
 }
 
 async function findGroup(groupId: string): Promise<AudioGroup | null> {
-  if (!(await pathExists(groupMetaPath(groupId)))) {
+  const resolvedGroupId = await resolveGroupId(groupId);
+
+  if (!resolvedGroupId) {
     return null;
   }
 
-  return readJson(groupMetaPath(groupId), AudioGroupSchema);
+  return getGroup(resolvedGroupId);
 }
 
 async function createGroup(input: { title: string; description?: string }): Promise<AudioGroup> {
@@ -148,7 +206,8 @@ async function createGroup(input: { title: string; description?: string }): Prom
 }
 
 async function updateGroup(input: { groupId: string; title: string; description?: string }): Promise<AudioGroup> {
-  const existing = await getGroup(input.groupId);
+  const resolvedGroupId = await assertGroupExists(input.groupId);
+  const existing = await getGroup(resolvedGroupId);
   const group: AudioGroup = {
     ...existing,
     title: input.title.trim(),
@@ -161,37 +220,42 @@ async function updateGroup(input: { groupId: string; title: string; description?
 }
 
 async function deleteGroup(groupId: string): Promise<void> {
-  await fs.rm(groupDir(groupId), { recursive: true, force: true });
-  await fs.rm(generatedGroupDir(groupId), { recursive: true, force: true });
+  const resolvedGroupId = await assertGroupExists(groupId);
+
+  await fs.rm(groupDir(resolvedGroupId), { recursive: true, force: true });
+  await fs.rm(generatedGroupDir(resolvedGroupId), { recursive: true, force: true });
 }
 
 async function getChapter(groupId: string, chapterId: string): Promise<Chapter> {
-  await assertGroupExists(groupId);
+  const resolvedGroupId = await assertGroupExists(groupId);
 
-  const meta = await readChapterMeta(groupId, chapterId);
-  const markdown = await fs.readFile(chapterMarkdownPath(groupId, chapterId), "utf-8");
+  const meta = await readChapterMeta(resolvedGroupId, chapterId);
+  const markdown = await fs.readFile(chapterMarkdownPath(resolvedGroupId, chapterId), "utf-8");
 
   return {
     ...meta,
     markdown,
-    generatedAudio: await readGeneratedAudio(groupId, chapterId),
+    markdownPath: chapterMarkdownPath(resolvedGroupId, chapterId),
+    generatedAudio: await readGeneratedAudio(resolvedGroupId, chapterId),
   };
 }
 
 async function findChapter(groupId: string, chapterId: string): Promise<Chapter | null> {
-  if (!(await pathExists(groupMetaPath(groupId)))) {
+  const resolvedGroupId = await resolveGroupId(groupId);
+
+  if (!resolvedGroupId) {
     return null;
   }
 
-  if (!(await pathExists(chapterMetaPath(groupId, chapterId)))) {
+  if (!(await pathExists(chapterMetaPath(resolvedGroupId, chapterId)))) {
     return null;
   }
 
-  if (!(await pathExists(chapterMarkdownPath(groupId, chapterId)))) {
+  if (!(await pathExists(chapterMarkdownPath(resolvedGroupId, chapterId)))) {
     return null;
   }
 
-  return getChapter(groupId, chapterId);
+  return getChapter(resolvedGroupId, chapterId);
 }
 
 async function createChapter(input: {
@@ -200,26 +264,27 @@ async function createChapter(input: {
   order?: number;
   markdown?: string;
 }): Promise<Chapter> {
-  await assertGroupExists(input.groupId);
+  const resolvedGroupId = await assertGroupExists(input.groupId);
 
-  const existingChapters = await listChapters(input.groupId);
-  const id = await uniqueId(input.title, async (candidate) => pathExists(chapterMetaPath(input.groupId, candidate)));
+  const existingChapters = await listChapters(resolvedGroupId);
+  const id = await uniqueId(input.title, async (candidate) => pathExists(chapterMetaPath(resolvedGroupId, candidate)));
   const timestamp = nowIso();
   const meta: ChapterMeta = {
     id,
-    groupId: input.groupId,
+    groupId: resolvedGroupId,
     title: input.title.trim(),
     order: input.order ?? existingChapters.length + 1,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
 
-  await writeJson(chapterMetaPath(input.groupId, id), meta);
-  await fs.writeFile(chapterMarkdownPath(input.groupId, id), input.markdown ?? "", "utf-8");
+  await writeJson(chapterMetaPath(resolvedGroupId, id), meta);
+  await fs.writeFile(chapterMarkdownPath(resolvedGroupId, id), input.markdown ?? "", "utf-8");
 
   return {
     ...meta,
     markdown: input.markdown ?? "",
+    markdownPath: chapterMarkdownPath(resolvedGroupId, id),
     generatedAudio: null,
   };
 }
@@ -231,28 +296,33 @@ async function updateChapter(input: {
   order: number;
   markdown: string;
 }): Promise<Chapter> {
-  const existing = await readChapterMeta(input.groupId, input.chapterId);
+  const resolvedGroupId = await assertGroupExists(input.groupId);
+  const existing = await readChapterMeta(resolvedGroupId, input.chapterId);
   const meta: ChapterMeta = {
     ...existing,
+    groupId: resolvedGroupId,
     title: input.title.trim(),
     order: input.order,
     updatedAt: nowIso(),
   };
 
-  await writeJson(chapterMetaPath(input.groupId, input.chapterId), meta);
-  await fs.writeFile(chapterMarkdownPath(input.groupId, input.chapterId), input.markdown, "utf-8");
+  await writeJson(chapterMetaPath(resolvedGroupId, input.chapterId), meta);
+  await fs.writeFile(chapterMarkdownPath(resolvedGroupId, input.chapterId), input.markdown, "utf-8");
 
   return {
     ...meta,
     markdown: input.markdown,
-    generatedAudio: await readGeneratedAudio(input.groupId, input.chapterId),
+    markdownPath: chapterMarkdownPath(resolvedGroupId, input.chapterId),
+    generatedAudio: await readGeneratedAudio(resolvedGroupId, input.chapterId),
   };
 }
 
 async function deleteChapter(groupId: string, chapterId: string): Promise<void> {
-  await fs.rm(chapterMetaPath(groupId, chapterId), { force: true });
-  await fs.rm(chapterMarkdownPath(groupId, chapterId), { force: true });
-  await fs.rm(generatedChapterDir(groupId, chapterId), { recursive: true, force: true });
+  const resolvedGroupId = await assertGroupExists(groupId);
+
+  await fs.rm(chapterMetaPath(resolvedGroupId, chapterId), { force: true });
+  await fs.rm(chapterMarkdownPath(resolvedGroupId, chapterId), { force: true });
+  await fs.rm(generatedChapterDir(resolvedGroupId, chapterId), { recursive: true, force: true });
 }
 
 async function saveGenerationResult(input: {
@@ -260,9 +330,10 @@ async function saveGenerationResult(input: {
   chapterId: string;
   result: GenerateAudioResult;
 }): Promise<GeneratedAudio> {
+  const resolvedGroupId = await assertGroupExists(input.groupId);
   const generatedAt = nowIso();
   const generatedAudio: GeneratedAudio = {
-    groupId: input.groupId,
+    groupId: resolvedGroupId,
     chapterId: input.chapterId,
     lessonOutputDir: input.result.lessonOutputDir,
     wavPath: input.result.wavPath,
@@ -274,7 +345,7 @@ async function saveGenerationResult(input: {
     generatedAt,
   };
 
-  await writeJson(generatedMetadataPath(input.groupId, input.chapterId), generatedAudio);
+  await writeJson(generatedMetadataPath(resolvedGroupId, input.chapterId), generatedAudio);
   return generatedAudio;
 }
 

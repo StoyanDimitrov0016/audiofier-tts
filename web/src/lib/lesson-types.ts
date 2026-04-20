@@ -31,6 +31,7 @@ export type ChapterSummary = {
 
 export type Chapter = ChapterSummary & {
   markdown: string;
+  markdownPath: string;
 };
 
 export type LessonLibrary = {

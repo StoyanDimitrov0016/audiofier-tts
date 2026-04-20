@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { callAudioGeneration } from "./audio-api";
+import { callAudioGeneration, startAudioGenerationJob } from "./audio-api";
 import {
   CreateChapterInputSchema,
   CreateGroupInputSchema,
@@ -9,6 +9,7 @@ import {
   GenerateChapterInputSchema,
   GetChapterInputSchema,
   GetGroupInputSchema,
+  SaveChapterGenerationResultInputSchema,
   UpdateChapterInputSchema,
   UpdateGroupInputSchema,
 } from "./storage/schemas";
@@ -48,6 +49,10 @@ function parseGetChapterInput(input: unknown) {
 
 function parseGenerateChapterInput(input: unknown) {
   return GenerateChapterInputSchema.parse(input);
+}
+
+function parseSaveChapterGenerationResultInput(input: unknown) {
+  return SaveChapterGenerationResultInputSchema.parse(input);
 }
 
 export const getLessonLibrary = createServerFn({ method: "GET" }).handler(async () => {
@@ -140,16 +145,48 @@ export const generateChapterAudio = createServerFn({ method: "POST" })
       voice: data.voice,
       speed: data.speed,
       wavOnly: data.wavOnly,
-      outputDir: lessonRepository.getGroupGeneratedOutputDir(data.groupId),
+      outputDir: lessonRepository.getGroupGeneratedOutputDir(chapter.groupId),
     });
     const generatedAudio = await lessonRepository.saveGenerationResult({
-      groupId: data.groupId,
+      groupId: chapter.groupId,
       chapterId: data.chapterId,
       result,
     });
 
     return {
       result,
+      generatedAudio,
+    };
+  });
+
+export const startChapterAudioGeneration = createServerFn({ method: "POST" })
+  .inputValidator(parseGenerateChapterInput)
+  .handler(async ({ data }) => {
+    const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
+    const job = await startAudioGenerationJob({
+      text: chapter.markdown,
+      stem: chapter.id,
+      suffix: ".md",
+      voice: data.voice,
+      speed: data.speed,
+      wavOnly: data.wavOnly,
+      outputDir: lessonRepository.getGroupGeneratedOutputDir(chapter.groupId),
+    });
+
+    return job;
+  });
+
+export const saveChapterAudioGenerationResult = createServerFn({ method: "POST" })
+  .inputValidator(parseSaveChapterGenerationResultInput)
+  .handler(async ({ data }) => {
+    const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
+    const generatedAudio = await lessonRepository.saveGenerationResult({
+      groupId: chapter.groupId,
+      chapterId: data.chapterId,
+      result: data.result,
+    });
+
+    return {
       generatedAudio,
     };
   });
