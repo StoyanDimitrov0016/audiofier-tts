@@ -62,9 +62,11 @@ export default function GroupForm(props: Props) {
           const [canSubmit] = state;
 
           return (
-            <Button className="w-fit" type="submit" disabled={!canSubmit || props.isSubmitting}>
-              {props.isSubmitting ? props.pendingLabel : props.submitLabel}
-            </Button>
+            <div className="flex justify-end">
+              <Button className="w-fit" type="submit" disabled={!canSubmit || props.isSubmitting}>
+                {props.isSubmitting ? props.pendingLabel : props.submitLabel}
+              </Button>
+            </div>
           );
         }}
       />

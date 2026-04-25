@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { z } from "zod";
 
 import { useAppForm } from "./app-form";
 import MarkdownPreview from "./markdown-preview";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { getEstimatedAudioDetails } from "../lib/audio-estimate";
 
 export interface LessonEditorValues {
   title: string;
@@ -26,6 +27,7 @@ const LessonEditorSchema = z.object({
 });
 
 export default function LessonEditor(props: Props) {
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const form = useAppForm({
     defaultValues: props.initialValues,
     validators: {
@@ -57,29 +59,46 @@ export default function LessonEditor(props: Props) {
       <form.AppField
         name="markdown"
         children={(field) => (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+          <div className="grid gap-3">
             <field.TextareaField label="Markdown" className="min-h-[520px] resize-y leading-relaxed" />
-            <Card className="rounded-lg" aria-label="Markdown preview">
-              <CardHeader>
-                <CardTitle>Preview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <MarkdownPreview markdown={field.state.value} />
-              </CardContent>
-            </Card>
           </div>
         )}
       />
 
       <form.Subscribe
-        selector={(state) => [state.canSubmit, state.isSubmitting] as const}
-        children={(state: readonly [boolean, boolean]) => {
-          const [canSubmit] = state;
+        selector={(state) => [state.canSubmit, state.values.markdown] as const}
+        children={(state: readonly [boolean, string]) => {
+          const [canSubmit, markdown] = state;
+          const estimatedAudio = getEstimatedAudioDetails(markdown);
 
           return (
-            <Button className="w-fit" type="submit" disabled={!canSubmit || props.isSubmitting}>
-              {props.isSubmitting ? props.pendingLabel : props.submitLabel}
-            </Button>
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">Estimated duration: {estimatedAudio.duration}</p>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <Button
+                    className="w-fit"
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsPreviewVisible((current) => !current)}
+                  >
+                    {isPreviewVisible ? "Hide preview" : "Preview"}
+                  </Button>
+                  <Button className="w-fit" type="submit" disabled={!canSubmit || props.isSubmitting}>
+                    {props.isSubmitting ? props.pendingLabel : props.submitLabel}
+                  </Button>
+                </div>
+              </div>
+
+              {isPreviewVisible ? (
+                <div className="grid gap-3" aria-label="Markdown preview">
+                  <h2 className="text-lg font-semibold">Preview</h2>
+                  <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
+                    <MarkdownPreview markdown={markdown} />
+                  </div>
+                </div>
+              ) : null}
+            </>
           );
         }}
       />

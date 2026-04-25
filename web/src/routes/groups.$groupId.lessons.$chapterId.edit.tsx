@@ -114,9 +114,14 @@ function EditLessonPage() {
       >
         Back to lesson
       </Link>
-      <header>
-        <p className="text-sm font-bold uppercase text-primary">Edit lesson</p>
-        <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{chapter.title}</h1>
+      <header className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <div>
+          <p className="text-sm font-bold uppercase text-primary">Edit lesson</p>
+          <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{chapter.title}</h1>
+        </div>
+        <Button className="w-fit" variant="destructive" type="button" onClick={removeLesson} disabled={isDeleting}>
+          {isDeleting ? "Deleting..." : "Delete lesson"}
+        </Button>
       </header>
 
       <Card className="rounded-lg">
@@ -134,10 +139,6 @@ function EditLessonPage() {
           />
         </CardContent>
       </Card>
-
-      <Button className="w-fit" variant="destructive" type="button" onClick={removeLesson} disabled={isDeleting}>
-        {isDeleting ? "Deleting..." : "Delete lesson"}
-      </Button>
 
       {error ? (
         <Alert variant="destructive">

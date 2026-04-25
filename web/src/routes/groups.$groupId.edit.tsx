@@ -89,9 +89,14 @@ function EditGroupPage() {
       >
         Back to group
       </Link>
-      <header>
-        <p className="text-sm font-bold uppercase text-primary">Edit group</p>
-        <h1 className="mt-1 text-4xl font-semibold tracking-tight md:text-6xl">{group.title}</h1>
+      <header className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <div>
+          <p className="text-sm font-bold uppercase text-primary">Edit group</p>
+          <h1 className="mt-1 text-4xl font-semibold tracking-tight md:text-6xl">{group.title}</h1>
+        </div>
+        <Button className="w-fit" variant="destructive" type="button" onClick={removeGroup} disabled={isDeleting}>
+          {isDeleting ? "Deleting..." : "Delete group"}
+        </Button>
       </header>
 
       <Card className="rounded-lg">
@@ -105,10 +110,6 @@ function EditGroupPage() {
           />
         </CardContent>
       </Card>
-
-      <Button className="w-fit" variant="destructive" type="button" onClick={removeGroup} disabled={isDeleting}>
-        {isDeleting ? "Deleting..." : "Delete group"}
-      </Button>
 
       {error ? (
         <Alert variant="destructive">
