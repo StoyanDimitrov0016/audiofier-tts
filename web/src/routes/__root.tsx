@@ -8,7 +8,8 @@ import AppSidePanel from "../components/app-side-panel";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import { getLessonLibrary } from "../server/lessons";
-import appCss from "../styles/app.css?url";
+import css from "../styles/app.css?url";
+import favicon from "../assets/favicon.svg?url";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -25,7 +26,12 @@ export const Route = createRootRoute({
     links: [
       {
         rel: "stylesheet",
-        href: appCss,
+        href: css,
+      },
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: favicon,
       },
     ],
   }),

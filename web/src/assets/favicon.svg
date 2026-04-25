@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Audiofier">
+  <rect width="32" height="32" rx="7" fill="#e8963a" />
+  <path
+    d="M4 17.333a2.667 2.667 0 0 0 2.667-2.667V9.333a2.667 2.667 0 0 1 5.333 0v17.333a2.667 2.667 0 0 0 5.333 0V5.333a2.667 2.667 0 0 1 5.333 0v17.333a2.667 2.667 0 0 0 5.333 0v-5.333a2.667 2.667 0 0 1 2.667-2.667"
+    fill="none"
+    stroke="#101010"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="2.4"
+  />
+</svg>
