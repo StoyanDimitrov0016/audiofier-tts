@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { callAudioGeneration, getAudioVoices, startAudioGenerationJob } from "./audio-api";
+import { getAudioVoices, startAudioGenerationJob } from "./audio-api";
 import {
   CreateChapterInputSchema,
   CreateGroupInputSchema,
@@ -131,32 +131,6 @@ export const deleteChapter = createServerFn({ method: "POST" })
     await lessonRepository.deleteChapter(data.groupId, data.chapterId);
     return {
       ok: true,
-    };
-  });
-
-export const generateChapterAudio = createServerFn({ method: "POST" })
-  .inputValidator(parseGenerateChapterInput)
-  .handler(async ({ data }) => {
-    const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
-    const result = await callAudioGeneration({
-      text: chapter.markdown,
-      stem: chapter.id,
-      suffix: ".md",
-      voice: data.voice,
-      langCode: data.langCode,
-      speed: data.speed,
-      wavOnly: data.wavOnly,
-      outputDir: lessonRepository.getGroupGeneratedOutputDir(chapter.groupId),
-    });
-    const generatedAudio = await lessonRepository.saveGenerationResult({
-      groupId: chapter.groupId,
-      chapterId: data.chapterId,
-      result,
-    });
-
-    return {
-      result,
-      generatedAudio,
     };
   });
 

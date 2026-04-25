@@ -291,7 +291,7 @@ Check that the service is alive:
 Invoke-RestMethod http://127.0.0.1:8765/health
 ```
 
-Generate from raw text, which is what the web app sends to the Python service through the TanStack BFF:
+Queue generation from raw text, which is what the web app sends to the Python service through the TanStack BFF:
 
 ```powershell
 $body = @{
@@ -301,7 +301,8 @@ $body = @{
   wavOnly = $true
 } | ConvertTo-Json
 
-Invoke-RestMethod http://127.0.0.1:8765/generate -Method Post -ContentType "application/json" -Body $body
+$job = Invoke-RestMethod http://127.0.0.1:8765/generate-jobs -Method Post -ContentType "application/json" -Body $body
+Invoke-RestMethod "http://127.0.0.1:8765/generate-jobs/$($job.jobId)"
 ```
 
 ## Web app

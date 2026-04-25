@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import queue
 import sys
 import threading
 import traceback
@@ -16,7 +17,6 @@ from urllib.parse import urlparse
 
 from generation import (
     DEFAULT_LANG_CODE,
-    DEFAULT_REPO_ID,
     DEFAULT_VOICE,
     GenerationOptions,
     GenerationResult,
@@ -27,6 +27,19 @@ from paths import PROJECT_ROOT, resolve_output_dir
 from voices import DEFAULT_VOICE_ID, list_voices
 
 MAX_REQUEST_BYTES = 2_000_000
+MAX_QUEUED_JOBS = 8
+SUPPORTED_GENERATION_REQUEST_KEYS = frozenset(
+    {
+        "langCode",
+        "outputDir",
+        "speed",
+        "stem",
+        "suffix",
+        "text",
+        "voice",
+        "wavOnly",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -65,6 +78,10 @@ class JobStore:
             self._jobs[job.id] = job
         return job
 
+    def delete(self, job_id: str) -> None:
+        with self._lock:
+            self._jobs.pop(job_id, None)
+
     def update(
         self,
         job_id: str,
@@ -93,6 +110,14 @@ class JobStore:
 JOB_STORE = JobStore()
 
 
+@dataclass(frozen=True)
+class GenerationRequest:
+    text: str
+    stem: str
+    suffix: str
+    options: GenerationOptions
+
+
 class ApiError(Exception):
     def __init__(self, status: HTTPStatus, message: str) -> None:
         super().__init__(message)
@@ -113,16 +138,6 @@ def get_bool(payload: dict[str, Any], key: str, default: bool) -> bool:
     if isinstance(value, bool):
         return value
     raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a boolean.")
-
-
-def get_int(payload: dict[str, Any], key: str, default: int) -> int:
-    value = payload.get(key, default)
-    if isinstance(value, bool):
-        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be an integer.")
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be an integer.") from None
 
 
 def get_float(payload: dict[str, Any], key: str, default: float) -> float:
@@ -151,6 +166,13 @@ def get_string(payload: dict[str, Any], key: str, default: str | None = None) ->
     raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a string.")
 
 
+def validate_payload_keys(payload: dict[str, Any]) -> None:
+    unexpected = sorted(set(payload).difference(SUPPORTED_GENERATION_REQUEST_KEYS))
+
+    if unexpected:
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"Unsupported request fields: {', '.join(unexpected)}.")
+
+
 def options_from_payload(payload: dict[str, Any], config: ServerConfig) -> GenerationOptions:
     output_dir_value = get_string(payload, "outputDir", str(config.output_dir))
     options = GenerationOptions(
@@ -158,13 +180,7 @@ def options_from_payload(payload: dict[str, Any], config: ServerConfig) -> Gener
         voice=get_string(payload, "voice", DEFAULT_VOICE),
         speed=get_float(payload, "speed", 1.0),
         lang_code=get_string(payload, "langCode", DEFAULT_LANG_CODE),
-        repo_id=get_string(payload, "repoId", DEFAULT_REPO_ID),
-        max_chars=get_int(payload, "maxChars", 1200),
-        pause_ms=get_int(payload, "pauseMs", 300),
-        keep_chunks=get_bool(payload, "keepChunks", False),
         wav_only=get_bool(payload, "wavOnly", False),
-        ffmpeg_path=get_optional_string(payload, "ffmpegPath"),
-        mp3_bitrate=get_string(payload, "mp3Bitrate", "96k"),
     )
     validate_generation_options(options)
     return options
@@ -193,29 +209,119 @@ def result_to_payload(result: GenerationResult) -> dict[str, Any]:
     }
 
 
-def generate_from_payload(
-    payload: dict[str, Any],
-    config: ServerConfig,
-    progress_callback: Callable[[dict[str, Any]], None] | None = None,
-) -> GenerationResult:
-    options = options_from_payload(payload, config)
+def parse_generation_request(payload: dict[str, Any], config: ServerConfig) -> GenerationRequest:
+    validate_payload_keys(payload)
     text = get_optional_string(payload, "text")
 
     if text is None:
         raise ApiError(HTTPStatus.BAD_REQUEST, "Request must include text.")
 
-    stem = get_string(payload, "stem", "lesson")
-    suffix = get_string(payload, "suffix", ".md")
-    return generate_audio_from_text(
+    return GenerationRequest(
         text=text,
-        stem=stem,
-        suffix=suffix,
-        options=options,
+        stem=get_string(payload, "stem", "lesson"),
+        suffix=get_string(payload, "suffix", ".md"),
+        options=options_from_payload(payload, config),
+    )
+
+
+def generate_from_request(
+    request: GenerationRequest,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+) -> GenerationResult:
+    return generate_audio_from_text(
+        text=request.text,
+        stem=request.stem,
+        suffix=request.suffix,
+        options=request.options,
         progress_callback=progress_callback,
     )
 
 
-def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
+class GenerationJobRunner:
+    def __init__(self, job_store: JobStore, *, max_queued_jobs: int = MAX_QUEUED_JOBS) -> None:
+        self._job_store = job_store
+        self._queue: queue.Queue[tuple[str, GenerationRequest]] = queue.Queue(maxsize=max_queued_jobs)
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread is not None and self._thread.is_alive():
+            return
+
+        self._thread = threading.Thread(target=self._work_loop, name="audiofier-job-runner", daemon=True)
+        self._thread.start()
+
+    def enqueue(self, job_id: str, request: GenerationRequest) -> None:
+        try:
+            self._queue.put_nowait((job_id, request))
+        except queue.Full as error:
+            raise ApiError(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                "Audio generation queue is full. Wait for current jobs to finish and try again.",
+            ) from error
+
+        queued_ahead = max(0, self._queue.qsize() - 1)
+        message = "Waiting to start." if queued_ahead == 0 else f"Queued behind {queued_ahead} job(s)."
+        self._job_store.update(
+            job_id,
+            progress={
+                "stage": "queued",
+                "current": 0,
+                "total": None,
+                "message": message,
+            },
+        )
+
+    def _work_loop(self) -> None:
+        while True:
+            job_id, request = self._queue.get()
+            try:
+                self._run_job(job_id, request)
+            finally:
+                self._queue.task_done()
+
+    def _run_job(self, job_id: str, request: GenerationRequest) -> None:
+        def update_progress(progress: dict[str, Any]) -> None:
+            self._job_store.update(job_id, status="running", progress=progress)
+
+        try:
+            self._job_store.update(
+                job_id,
+                status="running",
+                progress={
+                    "stage": "starting",
+                    "current": 0,
+                    "total": None,
+                    "message": "Starting audio generation.",
+                },
+            )
+            result = generate_from_request(request, progress_callback=update_progress)
+            self._job_store.update(
+                job_id,
+                status="succeeded",
+                progress={
+                    "stage": "complete",
+                    "current": result.chunk_count,
+                    "total": result.chunk_count,
+                    "message": "Audio generation complete.",
+                },
+                result=result_to_payload(result),
+            )
+        except Exception as error:
+            traceback.print_exc()
+            self._job_store.update(
+                job_id,
+                status="failed",
+                progress={
+                    "stage": "failed",
+                    "current": 0,
+                    "total": None,
+                    "message": str(error),
+                },
+                error=str(error),
+            )
+
+
+def make_handler(config: ServerConfig, runner: GenerationJobRunner) -> type[BaseHTTPRequestHandler]:
     class AudioRequestHandler(BaseHTTPRequestHandler):
         server_version = "AudiofierTTS/1.0"
 
@@ -233,9 +339,7 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
                     {
                         "ok": True,
                         "service": "audiofier-tts",
-                        "projectRoot": str(PROJECT_ROOT),
                         "outputDir": display_path(config.output_dir),
-                        "pythonExecutable": sys.executable,
                     },
                 )
                 return
@@ -293,9 +397,13 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
             if self.path == "/generate-jobs":
                 try:
                     payload = self.read_json()
+                    request = parse_generation_request(payload, config)
                     job = JOB_STORE.create()
-                    thread = threading.Thread(target=self.run_generation_job, args=(job.id, payload), daemon=True)
-                    thread.start()
+                    try:
+                        runner.enqueue(job.id, request)
+                    except Exception:
+                        JOB_STORE.delete(job.id)
+                        raise
                     self.write_json(
                         HTTPStatus.ACCEPTED,
                         {
@@ -314,62 +422,7 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
                     self.write_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(error)})
                 return
 
-            if self.path != "/generate":
-                self.write_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "Not found."})
-                return
-
-            try:
-                payload = self.read_json()
-                result = generate_from_payload(payload, config)
-                self.write_json(HTTPStatus.OK, result_to_payload(result))
-            except ApiError as error:
-                self.write_json(error.status, {"ok": False, "error": error.message})
-            except (FileNotFoundError, ValueError) as error:
-                self.write_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(error)})
-            except Exception as error:
-                traceback.print_exc()
-                self.write_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(error)})
-
-        def run_generation_job(self, job_id: str, payload: dict[str, Any]) -> None:
-            def update_progress(progress: dict[str, Any]) -> None:
-                JOB_STORE.update(job_id, status="running", progress=progress)
-
-            try:
-                JOB_STORE.update(
-                    job_id,
-                    status="running",
-                    progress={
-                        "stage": "starting",
-                        "current": 0,
-                        "total": None,
-                        "message": "Starting audio generation.",
-                    },
-                )
-                result = generate_from_payload(payload, config, progress_callback=update_progress)
-                JOB_STORE.update(
-                    job_id,
-                    status="succeeded",
-                    progress={
-                        "stage": "complete",
-                        "current": result.chunk_count,
-                        "total": result.chunk_count,
-                        "message": "Audio generation complete.",
-                    },
-                    result=result_to_payload(result),
-                )
-            except Exception as error:
-                traceback.print_exc()
-                JOB_STORE.update(
-                    job_id,
-                    status="failed",
-                    progress={
-                        "stage": "failed",
-                        "current": 0,
-                        "total": None,
-                        "message": str(error),
-                    },
-                    error=str(error),
-                )
+            self.write_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "Not found."})
 
         def read_json(self) -> dict[str, Any]:
             content_length = self.headers.get("Content-Length")
@@ -419,7 +472,9 @@ def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:
 
 
 def run_server(config: ServerConfig) -> None:
-    handler = make_handler(config)
+    runner = GenerationJobRunner(JOB_STORE)
+    runner.start()
+    handler = make_handler(config, runner)
     server = ThreadingHTTPServer((config.host, config.port), handler)
     print(f"Audiofier TTS server listening on http://{config.host}:{config.port}")
     print(f"Output directory: {config.output_dir}")

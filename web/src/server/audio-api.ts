@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-import {
-  AudioVoicesResponseSchema,
-  GenerateAudioInputSchema,
-  GenerateAudioJobStatusSchema,
-  GenerateAudioResultSchema,
-} from "../lib/audio-schemas";
+import { AudioVoicesResponseSchema, GenerateAudioInputSchema, GenerateAudioJobStatusSchema } from "../lib/audio-schemas";
 import type { GenerateAudioInput } from "../lib/audio-types";
 
 const DEFAULT_AUDIO_API_URL = "http://127.0.0.1:8765";
@@ -36,19 +31,6 @@ async function readAudioResponse<T extends object>(response: Response, schema: z
   }
 
   return schema.parse(payload);
-}
-
-export async function callAudioGeneration(input: GenerateAudioInput) {
-  const data = validateGenerateInput(input);
-  const response = await fetch(`${getAudioApiUrl()}/generate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
-
-  return readAudioResponse(response, GenerateAudioResultSchema);
 }
 
 export async function startAudioGenerationJob(input: GenerateAudioInput) {

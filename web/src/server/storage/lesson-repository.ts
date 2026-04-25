@@ -298,6 +298,9 @@ async function updateChapter(input: {
 }): Promise<Chapter> {
   const resolvedGroupId = await assertGroupExists(input.groupId);
   const existing = await readChapterMeta(resolvedGroupId, input.chapterId);
+  const markdownFilePath = chapterMarkdownPath(resolvedGroupId, input.chapterId);
+  const previousMarkdown = await fs.readFile(markdownFilePath, "utf-8");
+  const markdownChanged = previousMarkdown !== input.markdown;
   const meta: ChapterMeta = {
     ...existing,
     groupId: resolvedGroupId,
@@ -307,13 +310,17 @@ async function updateChapter(input: {
   };
 
   await writeJson(chapterMetaPath(resolvedGroupId, input.chapterId), meta);
-  await fs.writeFile(chapterMarkdownPath(resolvedGroupId, input.chapterId), input.markdown, "utf-8");
+  await fs.writeFile(markdownFilePath, input.markdown, "utf-8");
+
+  if (markdownChanged) {
+    await fs.rm(generatedChapterDir(resolvedGroupId, input.chapterId), { recursive: true, force: true });
+  }
 
   return {
     ...meta,
     markdown: input.markdown,
-    markdownPath: chapterMarkdownPath(resolvedGroupId, input.chapterId),
-    generatedAudio: await readGeneratedAudio(resolvedGroupId, input.chapterId),
+    markdownPath: markdownFilePath,
+    generatedAudio: markdownChanged ? null : await readGeneratedAudio(resolvedGroupId, input.chapterId),
   };
 }
 

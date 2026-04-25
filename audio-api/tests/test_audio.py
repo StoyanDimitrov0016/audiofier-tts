@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import unittest
 from pathlib import Path
 from types import ModuleType
@@ -14,7 +15,15 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from audio_generation import resolve_ffmpeg, synthesize_chunks
-from audio_server import ApiError, ServerConfig, generate_from_payload, options_from_payload
+from audio_server import (
+    JOB_STORE,
+    ApiError,
+    GenerationJobRunner,
+    ServerConfig,
+    generate_from_request,
+    options_from_payload,
+    parse_generation_request,
+)
 from cli import build_output_dir
 from generation import GenerationResult, sanitize_stem
 from paths import resolve_cli_input_path, resolve_output_dir
@@ -121,9 +130,26 @@ class ServerRequestTests(unittest.TestCase):
         self.assertTrue(options.wav_only)
         self.assertEqual(options.speed, 1.05)
 
-    def test_generate_from_payload_accepts_raw_text(self) -> None:
+    def test_parse_generation_request_accepts_raw_text(self) -> None:
         output_dir = ROOT / "server-output"
         config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        request = parse_generation_request(
+            {
+                "text": "# Hello",
+                "stem": "sample",
+                "suffix": ".md",
+                "wavOnly": True,
+            },
+            config,
+        )
+
+        self.assertEqual(request.text, "# Hello")
+        self.assertEqual(request.stem, "sample")
+        self.assertEqual(request.suffix, ".md")
+        self.assertTrue(request.options.wav_only)
+
+    def test_generate_from_request_runs_text_generation(self) -> None:
+        output_dir = ROOT / "server-output"
         expected = GenerationResult(
             lesson_output_dir=output_dir / "sample",
             wav_path=output_dir / "sample" / "sample.wav",
@@ -133,16 +159,19 @@ class ServerRequestTests(unittest.TestCase):
             duration_seconds=1.5,
         )
 
+        request = parse_generation_request(
+            {
+                "text": "# Hello",
+                "stem": "sample",
+                "suffix": ".md",
+                "wavOnly": True,
+                "outputDir": str(output_dir),
+            },
+            ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir),
+        )
+
         with patch("audio_server.generate_audio_from_text", return_value=expected) as generate:
-            result = generate_from_payload(
-                {
-                    "text": "# Hello",
-                    "stem": "sample",
-                    "suffix": ".md",
-                    "wavOnly": True,
-                },
-                config,
-            )
+            result = generate_from_request(request)
 
         self.assertEqual(result, expected)
         generate.assert_called_once()
@@ -150,16 +179,29 @@ class ServerRequestTests(unittest.TestCase):
         self.assertEqual(generate.call_args.kwargs["stem"], "sample")
         self.assertTrue(generate.call_args.kwargs["options"].wav_only)
 
-    def test_generate_from_payload_requires_text(self) -> None:
+    def test_parse_generation_request_requires_text(self) -> None:
         output_dir = ROOT / "server-output"
         config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
 
         with self.assertRaisesRegex(ApiError, "Request must include text."):
-            generate_from_payload(
+            parse_generation_request(
                 {
                     "stem": "sample",
                     "suffix": ".md",
                     "wavOnly": True,
+                },
+                config,
+            )
+
+    def test_parse_generation_request_rejects_unsupported_fields(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+
+        with self.assertRaisesRegex(ApiError, "Unsupported request fields: repoId."):
+            parse_generation_request(
+                {
+                    "text": "Hello",
+                    "repoId": "hexgrad/Kokoro-82M",
                 },
                 config,
             )
@@ -216,6 +258,50 @@ class SynthesisTests(unittest.TestCase):
         self.assertIsNotNone(last_call)
         assert last_call is not None
         self.assertEqual(last_call["split_pattern"], r"\n{2,}")
+
+
+class GenerationJobRunnerTests(unittest.TestCase):
+    def test_runner_processes_jobs_and_marks_success(self) -> None:
+        runner = GenerationJobRunner(JOB_STORE, max_queued_jobs=1)
+        runner.start()
+        request = parse_generation_request(
+            {
+                "text": "Queued text",
+                "stem": "queued-text",
+                "suffix": ".md",
+                "wavOnly": True,
+                "outputDir": str(ROOT / "server-output"),
+            },
+            ServerConfig(host="127.0.0.1", port=8765, output_dir=ROOT / "server-output"),
+        )
+        job = JOB_STORE.create()
+        expected = GenerationResult(
+            lesson_output_dir=ROOT / "server-output" / "queued-text",
+            wav_path=ROOT / "server-output" / "queued-text" / "queued-text.wav",
+            mp3_path=None,
+            chunk_count=1,
+            cleaned_character_count=11,
+            duration_seconds=1.0,
+        )
+
+        with patch("audio_server.generate_from_request", return_value=expected):
+            runner.enqueue(job.id, request)
+
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline:
+                current = JOB_STORE.get(job.id)
+                if current is not None and current.status == "succeeded":
+                    break
+                time.sleep(0.01)
+            else:
+                self.fail("Timed out waiting for queued generation job to complete.")
+
+        current = JOB_STORE.get(job.id)
+        self.assertIsNotNone(current)
+        assert current is not None
+        self.assertEqual(current.status, "succeeded")
+        self.assertTrue(current.result["wavPath"].endswith("queued-text.wav"))
+        JOB_STORE.delete(job.id)
 
 
 if __name__ == "__main__":
