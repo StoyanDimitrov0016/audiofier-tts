@@ -20,13 +20,12 @@ from generation import (
     DEFAULT_VOICE,
     GenerationOptions,
     GenerationResult,
-    generate_audio,
     generate_audio_from_text,
     validate_generation_options,
 )
+from paths import PROJECT_ROOT, resolve_output_dir
 from voices import DEFAULT_VOICE_ID, list_voices
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MAX_REQUEST_BYTES = 2_000_000
 
 
@@ -107,20 +106,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8765, help="Port to listen on.")
     parser.add_argument("--output-dir", default="output", help="Base folder for generated audio output.")
     return parser.parse_args()
-
-
-def resolve_output_dir(value: str, project_root: Path = PROJECT_ROOT) -> Path:
-    path = Path(value).expanduser()
-    if path.is_absolute():
-        return path
-    return (project_root / path).resolve()
-
-
-def resolve_input_path(value: str, project_root: Path = PROJECT_ROOT) -> Path:
-    path = Path(value).expanduser()
-    if path.is_absolute():
-        return path
-    return (project_root / path).resolve()
 
 
 def get_bool(payload: dict[str, Any], key: str, default: bool) -> bool:
@@ -215,26 +200,19 @@ def generate_from_payload(
 ) -> GenerationResult:
     options = options_from_payload(payload, config)
     text = get_optional_string(payload, "text")
-    input_path = get_optional_string(payload, "inputPath")
 
-    if text is not None and input_path is not None:
-        raise ApiError(HTTPStatus.BAD_REQUEST, "Use either text or inputPath, not both.")
+    if text is None:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Request must include text.")
 
-    if text is not None:
-        stem = get_string(payload, "stem", "lesson")
-        suffix = get_string(payload, "suffix", ".md")
-        return generate_audio_from_text(
-            text=text,
-            stem=stem,
-            suffix=suffix,
-            options=options,
-            progress_callback=progress_callback,
-        )
-
-    if input_path is not None:
-        return generate_audio(resolve_input_path(input_path), options, progress_callback=progress_callback)
-
-    raise ApiError(HTTPStatus.BAD_REQUEST, "Request must include text or inputPath.")
+    stem = get_string(payload, "stem", "lesson")
+    suffix = get_string(payload, "suffix", ".md")
+    return generate_audio_from_text(
+        text=text,
+        stem=stem,
+        suffix=suffix,
+        options=options,
+        progress_callback=progress_callback,
+    )
 
 
 def make_handler(config: ServerConfig) -> type[BaseHTTPRequestHandler]:

@@ -14,9 +14,10 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from audio_generation import resolve_ffmpeg, synthesize_chunks
-from audio_server import ServerConfig, generate_from_payload, options_from_payload
-from cli import build_output_dir, resolve_input_path, resolve_output_dir
+from audio_server import ApiError, ServerConfig, generate_from_payload, options_from_payload
+from cli import build_output_dir
 from generation import GenerationResult, sanitize_stem
+from paths import resolve_cli_input_path, resolve_output_dir
 from text_processing import make_chunks, merge_small_chunks, prepare_text_for_tts, strip_markdown
 
 
@@ -83,20 +84,20 @@ class OutputLayoutTests(unittest.TestCase):
         output_dir = build_output_dir(Path("output"), Path("lessons/fundamentals.md"))
         self.assertEqual(output_dir, Path("output/fundamentals"))
 
-    def test_resolve_input_path_prefers_existing_caller_relative_file(self) -> None:
+    def test_resolve_cli_input_path_prefers_existing_caller_relative_file(self) -> None:
         expected = (ROOT / "lessons" / "sample.md").resolve()
         previous_cwd = Path.cwd()
         try:
             os.chdir(ROOT)
-            resolved = resolve_input_path("lessons/sample.md", project_root=Path("unused"))
+            resolved = resolve_cli_input_path("lessons/sample.md", project_root=Path("unused"))
         finally:
             os.chdir(previous_cwd)
 
         self.assertEqual(resolved, expected)
 
-    def test_resolve_input_path_falls_back_to_project_root(self) -> None:
+    def test_resolve_cli_input_path_falls_back_to_project_root(self) -> None:
         expected = (ROOT / "lessons" / "missing.md").resolve()
-        resolved = resolve_input_path("lessons/missing.md", project_root=ROOT)
+        resolved = resolve_cli_input_path("lessons/missing.md", project_root=ROOT)
 
         self.assertEqual(resolved, expected)
 
@@ -148,6 +149,20 @@ class ServerRequestTests(unittest.TestCase):
         self.assertEqual(generate.call_args.kwargs["text"], "# Hello")
         self.assertEqual(generate.call_args.kwargs["stem"], "sample")
         self.assertTrue(generate.call_args.kwargs["options"].wav_only)
+
+    def test_generate_from_payload_requires_text(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+
+        with self.assertRaisesRegex(ApiError, "Request must include text."):
+            generate_from_payload(
+                {
+                    "stem": "sample",
+                    "suffix": ".md",
+                    "wavOnly": True,
+                },
+                config,
+            )
 
 
 class FfmpegResolutionTests(unittest.TestCase):
