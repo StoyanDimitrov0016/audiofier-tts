@@ -230,12 +230,13 @@ async function getChapter(groupId: string, chapterId: string): Promise<Chapter> 
   const resolvedGroupId = await assertGroupExists(groupId);
 
   const meta = await readChapterMeta(resolvedGroupId, chapterId);
-  const markdown = await fs.readFile(chapterMarkdownPath(resolvedGroupId, chapterId), "utf-8");
+  const markdownFilePath = chapterMarkdownPath(resolvedGroupId, chapterId);
+  const markdown = await fs.readFile(markdownFilePath, "utf-8");
 
   return {
     ...meta,
     markdown,
-    markdownPath: chapterMarkdownPath(resolvedGroupId, chapterId),
+    markdownPath: markdownFilePath,
     generatedAudio: await readGeneratedAudio(resolvedGroupId, chapterId),
   };
 }

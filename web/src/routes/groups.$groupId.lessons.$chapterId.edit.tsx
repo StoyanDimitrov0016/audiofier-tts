@@ -127,6 +127,7 @@ function EditLessonPage() {
       <Card className="rounded-lg">
         <CardContent>
           <LessonEditor
+            key={chapter.updatedAt}
             initialValues={{
               title: chapter.title,
               order: chapter.order,
