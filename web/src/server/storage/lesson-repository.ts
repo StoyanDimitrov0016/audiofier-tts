@@ -3,7 +3,7 @@ import path from "node:path";
 
 import type { AudioGroup, Chapter, ChapterSummary, GeneratedAudio, LessonLibrary } from "../../lib/lesson-types";
 import type { GenerateAudioResult } from "../../lib/audio-types";
-import { AudioGroupSchema, ChapterMetaSchema, GeneratedAudioSchema } from "./schemas";
+import { AudioGroupSchema, ChapterMetaSchema, GeneratedAudioSchema } from "../../lib/lesson-schemas";
 import { storagePaths } from "./paths";
 import { ensureDir, nowIso, pathExists, readJson, uniqueId, writeJson } from "../lib/persistence";
 

@@ -1,20 +1,28 @@
 import { z } from "zod";
 
-import { GenerateAudioResultSchema } from "../../lib/audio-schemas";
+import { GenerateAudioResultSchema } from "./audio-schemas";
 
-const StorageIdSchema = z
+export const StorageIdSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9._-]{0,79}$/, "Use lowercase letters, numbers, dots, dashes, or underscores.");
 
-export const CreateGroupInputSchema = z.object({
+export const GroupFormSchema = z.object({
   title: z.string().trim().min(1, "Group title is required."),
+  description: z.string(),
+});
+
+export const LessonEditorSchema = z.object({
+  title: z.string().trim().min(1, "Lesson title is required."),
+  order: z.number().int().min(1, "Order must be at least 1."),
+  markdown: z.string(),
+});
+
+export const CreateGroupInputSchema = GroupFormSchema.extend({
   description: z.string().trim().optional().default(""),
 });
 
-export const UpdateGroupInputSchema = z.object({
+export const UpdateGroupInputSchema = CreateGroupInputSchema.extend({
   groupId: StorageIdSchema,
-  title: z.string().trim().min(1, "Group title is required."),
-  description: z.string().trim().optional().default(""),
 });
 
 export const DeleteGroupInputSchema = z.object({
@@ -32,12 +40,9 @@ export const CreateChapterInputSchema = z.object({
   markdown: z.string().optional().default(""),
 });
 
-export const UpdateChapterInputSchema = z.object({
+export const UpdateChapterInputSchema = LessonEditorSchema.extend({
   groupId: StorageIdSchema,
   chapterId: StorageIdSchema,
-  title: z.string().trim().min(1, "Chapter title is required."),
-  order: z.number().int().min(1, "Order must be at least 1."),
-  markdown: z.string(),
 });
 
 export const DeleteChapterInputSchema = z.object({
@@ -94,3 +99,6 @@ export const ChapterMetaSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+
+export type GroupFormValues = z.infer<typeof GroupFormSchema>;
+export type LessonEditorValues = z.infer<typeof LessonEditorSchema>;

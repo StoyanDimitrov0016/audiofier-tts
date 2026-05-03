@@ -12,7 +12,7 @@ import {
   SaveChapterGenerationResultInputSchema,
   UpdateChapterInputSchema,
   UpdateGroupInputSchema,
-} from "./storage/schemas";
+} from "../lib/lesson-schemas";
 
 function parseCreateGroupInput(input: unknown) {
   return CreateGroupInputSchema.parse(input);
