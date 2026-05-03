@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { getAudioVoices, startAudioGenerationJob } from "./audio-api";
+import { getAudioVoices, startAudioGenerationJob } from "./audio-generator-api";
 import {
   CreateChapterInputSchema,
   CreateGroupInputSchema,
@@ -13,7 +13,6 @@ import {
   UpdateChapterInputSchema,
   UpdateGroupInputSchema,
 } from "./storage/schemas";
-import { lessonRepository } from "./storage/lesson-repository";
 
 function parseCreateGroupInput(input: unknown) {
   return CreateGroupInputSchema.parse(input);
@@ -55,13 +54,20 @@ function parseSaveChapterGenerationResultInput(input: unknown) {
   return SaveChapterGenerationResultInputSchema.parse(input);
 }
 
+async function getLessonRepository() {
+  const module = await import("./storage/lesson-repository");
+  return module.lessonRepository;
+}
+
 export const getLessonLibrary = createServerFn({ method: "GET" }).handler(async () => {
+  const lessonRepository = await getLessonRepository();
   return lessonRepository.getLibrary();
 });
 
 export const getAudioGroupDetails = createServerFn({ method: "GET" })
   .inputValidator(parseGetGroupInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     const group = await lessonRepository.findGroup(data.groupId);
 
     if (!group) {
@@ -77,6 +83,7 @@ export const getAudioGroupDetails = createServerFn({ method: "GET" })
 export const createAudioGroup = createServerFn({ method: "POST" })
   .inputValidator(parseCreateGroupInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     const group = await lessonRepository.createGroup(data);
     return {
       group,
@@ -86,6 +93,7 @@ export const createAudioGroup = createServerFn({ method: "POST" })
 export const updateAudioGroup = createServerFn({ method: "POST" })
   .inputValidator(parseUpdateGroupInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     const group = await lessonRepository.updateGroup(data);
     return {
       group,
@@ -95,6 +103,7 @@ export const updateAudioGroup = createServerFn({ method: "POST" })
 export const deleteAudioGroup = createServerFn({ method: "POST" })
   .inputValidator(parseDeleteGroupInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     await lessonRepository.deleteGroup(data.groupId);
     return {
       ok: true,
@@ -104,6 +113,7 @@ export const deleteAudioGroup = createServerFn({ method: "POST" })
 export const createChapter = createServerFn({ method: "POST" })
   .inputValidator(parseCreateChapterInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     const chapter = await lessonRepository.createChapter(data);
     return {
       chapter,
@@ -113,12 +123,14 @@ export const createChapter = createServerFn({ method: "POST" })
 export const getChapterDetails = createServerFn({ method: "GET" })
   .inputValidator(parseGetChapterInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     return lessonRepository.findChapter(data.groupId, data.chapterId);
   });
 
 export const updateChapter = createServerFn({ method: "POST" })
   .inputValidator(parseUpdateChapterInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     const chapter = await lessonRepository.updateChapter(data);
     return {
       chapter,
@@ -128,6 +140,7 @@ export const updateChapter = createServerFn({ method: "POST" })
 export const deleteChapter = createServerFn({ method: "POST" })
   .inputValidator(parseDeleteChapterInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     await lessonRepository.deleteChapter(data.groupId, data.chapterId);
     return {
       ok: true,
@@ -137,6 +150,7 @@ export const deleteChapter = createServerFn({ method: "POST" })
 export const startChapterAudioGeneration = createServerFn({ method: "POST" })
   .inputValidator(parseGenerateChapterInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
     const job = await startAudioGenerationJob({
       text: chapter.markdown,
@@ -155,6 +169,7 @@ export const startChapterAudioGeneration = createServerFn({ method: "POST" })
 export const saveChapterAudioGenerationResult = createServerFn({ method: "POST" })
   .inputValidator(parseSaveChapterGenerationResultInput)
   .handler(async ({ data }) => {
+    const lessonRepository = await getLessonRepository();
     const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
     const generatedAudio = await lessonRepository.saveGenerationResult({
       groupId: chapter.groupId,

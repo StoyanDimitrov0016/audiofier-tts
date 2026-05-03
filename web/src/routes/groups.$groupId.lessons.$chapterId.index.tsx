@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Slider } from "../components/ui/slider";
-import { getAudioGenerationJob } from "../lib/audio-api-client";
+import { getAudioGenerationJob } from "../lib/audio-generator-client";
 import type { AudioVoice, GenerateAudioProgress } from "../lib/audio-types";
 import {
   getAudioGroupDetails,

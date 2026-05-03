@@ -3,13 +3,13 @@ import { z } from "zod";
 import { AudioVoicesResponseSchema, GenerateAudioInputSchema, GenerateAudioJobStatusSchema } from "../lib/audio-schemas";
 import type { GenerateAudioInput } from "../lib/audio-types";
 
-const DEFAULT_AUDIO_API_URL = "http://127.0.0.1:8765";
+const DEFAULT_AUDIO_GENERATOR_URL = "http://127.0.0.1:8765";
 
-function getAudioApiUrl() {
-  return process.env.AUDIO_API_URL ?? DEFAULT_AUDIO_API_URL;
+function getAudioGeneratorUrl() {
+  return process.env.AUDIO_GENERATOR_URL ?? DEFAULT_AUDIO_GENERATOR_URL;
 }
 
-const AudioApiErrorSchema = z.object({
+const AudioGeneratorApiErrorSchema = z.object({
   ok: z.literal(false),
   error: z.string(),
 });
@@ -20,10 +20,10 @@ function validateGenerateInput(input: unknown): GenerateAudioInput {
 
 async function readAudioResponse<T extends object>(response: Response, schema: z.ZodType<T>): Promise<T> {
   const payload = (await response.json()) as unknown;
-  const apiError = AudioApiErrorSchema.safeParse(payload);
+  const apiError = AudioGeneratorApiErrorSchema.safeParse(payload);
 
   if (!response.ok) {
-    throw new Error(apiError.success ? apiError.data.error : `Audio API returned ${response.status}`);
+    throw new Error(apiError.success ? apiError.data.error : `Audio generator returned ${response.status}`);
   }
 
   if (apiError.success) {
@@ -35,7 +35,7 @@ async function readAudioResponse<T extends object>(response: Response, schema: z
 
 export async function startAudioGenerationJob(input: GenerateAudioInput) {
   const data = validateGenerateInput(input);
-  const response = await fetch(`${getAudioApiUrl()}/generate-jobs`, {
+  const response = await fetch(`${getAudioGeneratorUrl()}/generate-jobs`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -47,6 +47,6 @@ export async function startAudioGenerationJob(input: GenerateAudioInput) {
 }
 
 export async function getAudioVoices() {
-  const response = await fetch(`${getAudioApiUrl()}/voices`);
+  const response = await fetch(`${getAudioGeneratorUrl()}/voices`);
   return readAudioResponse(response, AudioVoicesResponseSchema);
 }

@@ -1,7 +1,7 @@
 {
-  "include": ["audio-api/audio.py", "audio-api/server.py", "audio-api/src", "audio-api/tests"],
-  "exclude": ["audio-api/.venv", "audio-api/output", "web/node_modules", "web/dist"],
-  "extraPaths": ["./audio-api/src"],
-  "venvPath": "./audio-api",
+  "include": ["audio-generator/audio.py", "audio-generator/server.py", "audio-generator/src", "audio-generator/tests"],
+  "exclude": ["audio-generator/.venv", "audio-generator/output", "web/node_modules", "web/dist"],
+  "extraPaths": ["./audio-generator/src"],
+  "venvPath": "./audio-generator",
   "venv": ".venv"
 }

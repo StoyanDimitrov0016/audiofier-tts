@@ -1,5 +1,5 @@
 {
-  "name": "audiofier-audio-api",
+  "name": "audiofier-audio-generator",
   "private": true,
   "scripts": {
     "setup:venv": "node ./scripts/setup-venv.mjs",

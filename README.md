@@ -5,7 +5,7 @@ Local text-to-speech tooling with a Python audio-generation service and a TanSta
 ## Project layout
 
 ```text
-audio-api/            Python audio-generation API and CLI
+audio-generator/      Python audio-generation service and CLI
   lessons/            Source markdown or text lessons
   output/             Generated audio, one folder per lesson
   src/                Python implementation
@@ -42,13 +42,13 @@ Install JavaScript dependencies from the repository root:
 npm install
 ```
 
-The Python service lives in `audio-api/` and uses a disposable local virtual environment at:
+The Python service lives in `audio-generator/` and uses a disposable local virtual environment at:
 
 ```text
-audio-api/.venv
+audio-generator/.venv
 ```
 
-Do not copy this folder between machines or repo locations. If the repo moves, delete `audio-api/.venv` and recreate it.
+Do not copy this folder between machines or repo locations. If the repo moves, delete `audio-generator/.venv` and recreate it.
 
 The shortest setup path from the repository root is:
 
@@ -56,7 +56,7 @@ The shortest setup path from the repository root is:
 npm run setup:audio
 ```
 
-That command creates `audio-api/.venv` when it is missing and installs `audio-api/requirements.txt` plus the Python dev tools in `audio-api/requirements-dev.txt`.
+That command creates `audio-generator/.venv` when it is missing and installs `audio-generator/requirements.txt` plus the Python dev tools in `audio-generator/requirements-dev.txt`.
 
 ### Git Bash Setup
 
@@ -71,14 +71,14 @@ npm run dev
 To recreate a broken or moved Python venv in Git Bash:
 
 ```bash
-rm -rf audio-api/.venv
+rm -rf audio-generator/.venv
 npm run setup:audio
 ```
 
 Manual Git Bash setup is also fine:
 
 ```bash
-cd audio-api
+cd audio-generator
 py -3.12 -m venv .venv
 source .venv/Scripts/activate
 python -m pip install -r requirements.txt
@@ -99,14 +99,14 @@ npm run dev
 To recreate a broken or moved Python venv in PowerShell:
 
 ```powershell
-Remove-Item -LiteralPath .\audio-api\.venv -Recurse -Force
+Remove-Item -LiteralPath .\audio-generator\.venv -Recurse -Force
 npm run setup:audio
 ```
 
 Manual PowerShell setup is also fine:
 
 ```powershell
-cd .\audio-api
+cd .\audio-generator
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
@@ -117,7 +117,7 @@ cd ..
 If the `py` launcher cannot find Python, use the installed executable directly:
 
 ```powershell
-cd .\audio-api
+cd .\audio-generator
 & "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe" -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
@@ -128,10 +128,10 @@ cd ..
 When opening the repository root in VS Code, select the Python interpreter at:
 
 ```text
-audio-api\.venv\Scripts\python.exe
+audio-generator\.venv\Scripts\python.exe
 ```
 
-The root `pyrightconfig.json` also points Pylance at `audio-api/.venv` and `audio-api/src`.
+The root `pyrightconfig.json` also points Pylance at `audio-generator/.venv` and `audio-generator/src`.
 
 For MP3 output, install FFmpeg and either:
 
@@ -206,35 +206,35 @@ The web UI is split into pages:
 /groups/:groupId/lessons/:chapterId/edit     update a lesson
 ```
 
-Group and lesson forms use TanStack Form with Zod schemas. Lesson previews render markdown with `marked` and sanitize the generated HTML before it is inserted into the page.
+Group and lesson forms use TanStack Form with Zod schemas. Lesson previews render markdown with `marked`, escape raw HTML, and allow only safe link or image URLs before inserting the generated markup into the page.
 
 ## Usage
 
 Use the shell-neutral npm script from the repository root:
 
 ```bash
-npm run generate -w audiofier-audio-api -- ./lessons/fundamentals.md
+npm run generate -w audiofier-audio-generator -- ./lessons/fundamentals.md
 ```
 
 For a quick local test, use the included sample lesson:
 
 ```bash
-npm run generate:sample -w audiofier-audio-api
+npm run generate:sample -w audiofier-audio-generator
 ```
 
 PowerShell and cmd can also use the Windows launcher:
 
 ```powershell
-.\audio-api\tts.cmd .\lessons\fundamentals.md
+.\audio-generator\tts.cmd .\lessons\fundamentals.md
 ```
 
 For a quick local test, use the included sample lesson:
 
 ```powershell
-.\audio-api\tts.cmd .\lessons\sample.md --wav-only
+.\audio-generator\tts.cmd .\lessons\sample.md --wav-only
 ```
 
-Relative lesson paths are resolved from your current terminal directory first. If that file does not exist, the app falls back to the `audio-api/` folder, so `.\audio-api\tts.cmd lessons\sample.md --wav-only` works from the repo root. Relative output folders are created under `audio-api/` by default.
+Relative lesson paths are resolved from your current terminal directory first. If that file does not exist, the app falls back to the `audio-generator/` folder, so `.\audio-generator\tts.cmd lessons\sample.md --wav-only` works from the repo root. Relative output folders are created under `audio-generator/` by default.
 
 That single command now creates both:
 
@@ -244,25 +244,25 @@ That single command now creates both:
 Run the Python script directly in PowerShell:
 
 ```powershell
-.\audio-api\.venv\Scripts\python.exe .\audio-api\audio.py .\audio-api\lessons\fundamentals.md
+.\audio-generator\.venv\Scripts\python.exe .\audio-generator\audio.py .\audio-generator\lessons\fundamentals.md
 ```
 
 Generate only WAV:
 
 ```bash
-npm run generate -w audiofier-audio-api -- ./lessons/fundamentals.md --wav-only
+npm run generate -w audiofier-audio-generator -- ./lessons/fundamentals.md --wav-only
 ```
 
 Keep intermediate chunk files:
 
 ```bash
-npm run generate -w audiofier-audio-api -- ./lessons/fundamentals.md --keep-chunks
+npm run generate -w audiofier-audio-generator -- ./lessons/fundamentals.md --keep-chunks
 ```
 
 Change voice and speed:
 
 ```bash
-npm run generate -w audiofier-audio-api -- ./lessons/fundamentals.md --voice af_bella --speed 0.96
+npm run generate -w audiofier-audio-generator -- ./lessons/fundamentals.md --voice af_bella --speed 0.96
 ```
 
 ## HTTP server
@@ -276,7 +276,7 @@ npm run dev:audio
 PowerShell and cmd can also use the Windows launcher:
 
 ```powershell
-.\audio-api\server.cmd
+.\audio-generator\server.cmd
 ```
 
 By default it listens only on your machine:
@@ -320,7 +320,7 @@ Open `http://localhost:3000`.
 Or start the Python server first:
 
 ```powershell
-.\audio-api\server.cmd
+.\audio-generator\server.cmd
 ```
 
 In a second terminal:
@@ -330,10 +330,10 @@ cd .\web
 npm run dev
 ```
 
-If the audio service uses another URL, set `AUDIO_API_URL` before starting the web app:
+If the audio service uses another URL, set `AUDIO_GENERATOR_URL` before starting the web app:
 
 ```powershell
-$env:AUDIO_API_URL = "http://127.0.0.1:8765"
+$env:AUDIO_GENERATOR_URL = "http://127.0.0.1:8765"
 npm run dev
 ```
 

@@ -63,7 +63,7 @@ function isMovedVenv() {
 
 if (existsSync(venvDir) && (!existsSync(pythonPath) || isMovedVenv())) {
   console.error(`Found a stale Python virtual environment at ${venvDir}.`);
-  console.error("Delete audio-api/.venv, then rerun npm run setup:audio.");
+  console.error("Delete audio-generator/.venv, then rerun npm run setup:audio.");
   process.exit(1);
 }
 
@@ -74,7 +74,7 @@ if (!existsSync(pythonPath)) {
     run("python3", ["-m", "venv", ".venv"]);
 
   if (!created) {
-    console.error("Could not create audio-api/.venv. Install Python 3.12 and try again.");
+    console.error("Could not create audio-generator/.venv. Install Python 3.12 and try again.");
     process.exit(1);
   }
 }

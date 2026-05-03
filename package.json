@@ -7,18 +7,18 @@
     "npm": "11.x"
   },
   "workspaces": [
-    "audio-api",
+    "audio-generator",
     "web"
   ],
   "scripts": {
     "dev": "turbo dev --env-mode=loose",
-    "dev:audio": "turbo dev --filter=audiofier-audio-api --env-mode=loose",
+    "dev:audio": "turbo dev --filter=audiofier-audio-generator --env-mode=loose",
     "dev:web": "turbo dev --filter=audiofier-web --env-mode=loose",
-    "setup:audio": "npm run setup:venv -w audiofier-audio-api",
+    "setup:audio": "npm run setup:venv -w audiofier-audio-generator",
     "build": "turbo build",
-    "format": "prettier --write . && npm run format -w audiofier-audio-api",
-    "format:check": "prettier --check . && npm run format:check -w audiofier-audio-api",
-    "lint": "eslint . && npm run lint -w audiofier-audio-api",
+    "format": "prettier --write . && npm run format -w audiofier-audio-generator",
+    "format:check": "prettier --check . && npm run format:check -w audiofier-audio-generator",
+    "lint": "eslint . && npm run lint -w audiofier-audio-generator",
     "typecheck": "turbo typecheck",
     "test": "turbo test"
   },

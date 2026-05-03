@@ -28,8 +28,8 @@ if (!existsSync(pythonPath) || isMovedVenv()) {
   console.error(`Python virtual environment is missing or stale at ${venvDir}.`);
   console.error("Recreate it with:");
   console.error("  npm run setup:audio");
-  console.error("Or delete audio-api/.venv and run:");
-  console.error("  npm run setup:venv -w audiofier-audio-api");
+  console.error("Or delete audio-generator/.venv and run:");
+  console.error("  npm run setup:venv -w audiofier-audio-generator");
   process.exit(1);
 }
 
