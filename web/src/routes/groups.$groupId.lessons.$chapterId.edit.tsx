@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 
-import LessonEditor, { type LessonEditorValues } from "../components/lesson-editor";
+import LessonEditor from "../components/lesson-editor";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import RoutePending from "../components/route-pending";
@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button, buttonVariants } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { deleteChapter, getAudioGroupDetails, getChapterDetails, updateChapter } from "../server/lessons";
+import type { LessonEditorValues } from "../lib/lesson-schemas";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/edit")({
   loader: async ({ params }) => {

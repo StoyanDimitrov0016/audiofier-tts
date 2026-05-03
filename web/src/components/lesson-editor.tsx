@@ -1,16 +1,10 @@
 import { useState } from "react";
-import { z } from "zod";
 
 import { useAppForm } from "./app-form";
 import MarkdownPreview from "./markdown-preview";
 import { Button } from "./ui/button";
 import { getEstimatedAudioDetails } from "../lib/audio-estimate";
-
-export interface LessonEditorValues {
-  title: string;
-  order: number;
-  markdown: string;
-}
+import { LessonEditorSchema, type LessonEditorValues } from "../lib/lesson-schemas";
 
 interface Props {
   initialValues: LessonEditorValues;
@@ -19,12 +13,6 @@ interface Props {
   isSubmitting: boolean;
   onSubmit: (values: LessonEditorValues) => Promise<void>;
 }
-
-const LessonEditorSchema = z.object({
-  title: z.string().trim().min(1, "Lesson title is required."),
-  order: z.number().int().min(1, "Order must be at least 1."),
-  markdown: z.string(),
-});
 
 export default function LessonEditor(props: Props) {
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);

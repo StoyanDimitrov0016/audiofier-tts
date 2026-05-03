@@ -1,12 +1,6 @@
-import { z } from "zod";
-
 import { useAppForm } from "./app-form";
 import { Button } from "./ui/button";
-
-export interface GroupFormValues {
-  title: string;
-  description: string;
-}
+import { GroupFormSchema, type GroupFormValues } from "../lib/lesson-schemas";
 
 interface Props {
   initialValues: GroupFormValues;
@@ -15,11 +9,6 @@ interface Props {
   isSubmitting: boolean;
   onSubmit: (values: GroupFormValues) => Promise<void>;
 }
-
-const GroupFormSchema = z.object({
-  title: z.string().trim().min(1, "Group title is required."),
-  description: z.string(),
-});
 
 export default function GroupForm(props: Props) {
   const form = useAppForm({

@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 
-import GroupForm, { type GroupFormValues } from "../components/group-form";
+import GroupForm from "../components/group-form";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { buttonVariants } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { createAudioGroup } from "../server/lessons";
+import type { GroupFormValues } from "../lib/lesson-schemas";
 
 export const Route = createFileRoute("/groups/new")({
   errorComponent: RouteError,

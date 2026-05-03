@@ -13,5 +13,6 @@ export const { useAppForm } = createFormHook({
     TextareaField,
     TextField,
   },
+  // Required by createFormHook even when the app only customizes fields.
   formComponents: {},
 });
