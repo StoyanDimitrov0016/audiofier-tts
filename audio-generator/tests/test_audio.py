@@ -300,6 +300,8 @@ class GenerationJobRunnerTests(unittest.TestCase):
         self.assertIsNotNone(current)
         assert current is not None
         self.assertEqual(current.status, "succeeded")
+        self.assertIsNotNone(current.result)
+        assert current.result is not None
         self.assertTrue(current.result["wavPath"].endswith("queued-text.wav"))
         JOB_STORE.delete(job.id)
 
