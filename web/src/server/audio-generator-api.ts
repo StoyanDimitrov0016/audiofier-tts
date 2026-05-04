@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { AudioVoicesResponseSchema, GenerateAudioInputSchema, GenerateAudioJobStatusSchema } from "../lib/audio-schemas";
+import {
+  AudioVoicesResponseSchema,
+  GenerateAudioInputSchema,
+  GenerateAudioJobStatusSchema,
+} from "../lib/audio-schemas";
 import type { GenerateAudioInput } from "../lib/audio-types";
 
 const DEFAULT_AUDIO_GENERATOR_URL = "http://127.0.0.1:8765";
@@ -19,7 +23,7 @@ function validateGenerateInput(input: unknown): GenerateAudioInput {
 }
 
 async function readAudioResponse<T extends object>(response: Response, schema: z.ZodType<T>): Promise<T> {
-  const payload = (await response.json()) as unknown;
+  const payload = await response.json();
   const apiError = AudioGeneratorApiErrorSchema.safeParse(payload);
 
   if (!response.ok) {

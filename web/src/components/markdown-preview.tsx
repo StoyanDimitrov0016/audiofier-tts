@@ -48,12 +48,7 @@ function sanitizeUrl(value: string | null | undefined) {
 
   const trimmed = value.trim();
 
-  if (
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("./") ||
-    trimmed.startsWith("../") ||
-    trimmed.startsWith("#")
-  ) {
+  if (trimmed.startsWith("/") || trimmed.startsWith("./") || trimmed.startsWith("../") || trimmed.startsWith("#")) {
     return trimmed;
   }
 
