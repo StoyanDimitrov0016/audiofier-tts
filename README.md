@@ -169,6 +169,9 @@ Kokoro also performs internal phoneme-level chunking. Audiofier's chunking exist
 
 Write lessons as spoken prose first and rendered Markdown second.
 
+For copied PDF, Wikipedia, documentation, or book text, use the cleanup prompt in
+[`docs/prompts/lesson-format-prompt.md`](docs/prompts/lesson-format-prompt.md).
+
 Recommended:
 
 - Use headings for structure.
