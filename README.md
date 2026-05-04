@@ -1,92 +1,46 @@
 # Audiofier TTS
 
-Local text-to-speech tooling with a Python audio-generation service and a TanStack Start web app.
+Audiofier is a local-first app for turning Markdown lessons into generated audio. It gives you a browser UI for organizing lesson text, previewing Markdown, selecting a voice, and sending the cleaned text to a local Kokoro-based audio generator.
 
-## Project layout
+The project is intentionally local: lesson source files live on your machine, generated WAV/MP3 files stay on your machine, and the web app talks to local services only.
 
-```text
-audio-generator/      Python audio-generation service and CLI
-  lessons/            Source markdown or text lessons
-  output/             Generated audio, one folder per lesson
-  src/                Python implementation
-  tests/              Python regression tests
-  package.json        Turborepo scripts for the Python service
-  audio.py            CLI entrypoint
-  server.py           HTTP server entrypoint
-  tts.cmd             Windows CLI launcher
-  server.cmd          Windows server launcher
-web/                  TanStack Start UI and server functions
-storage/              Local lesson markdowns and generated audio metadata
-  markdowns/          Audio group and chapter source files
-  generated/          Generated audio output, ignored by Git
-package.json          Root npm workspace and Turborepo commands
-turbo.json            Shared task configuration
-```
+## What It Does
 
-## What this project does
+- Stores lesson groups and chapter Markdown in local files.
+- Cleans Markdown into speech-friendly text before synthesis.
+- Splits long lessons into safe text chunks for Kokoro.
+- Generates WAV audio and converts it to MP3 by default.
+- Tracks generated audio metadata separately from source Markdown.
+- Provides both a web workflow and a Python CLI for direct generation.
 
-- Reads a `.md` or `.txt` lesson
-- Cleans markdown into speech-friendly text
-- Splits long lessons into safe chunks for Kokoro
-- Produces a merged `.wav`
-- Converts the result to `.mp3` by default
-- Stores each lesson in its own output folder
+## Architecture
 
-## Setup
+![Audiofier architecture](docs/assets/architecture-diagram.png)
+
+The browser talks to the TanStack Start BFF. The BFF owns app workflows: reading and writing lesson text, storing metadata, and queueing audio generation. The Python audio generator only receives text and generation options, then writes generated audio files back to local storage.
+
+Main runtime flow:
+
+1. Browser/client calls the BFF through TanStack server functions.
+2. BFF reads and writes Markdown lesson content in text storage.
+3. BFF sends cleaned lesson text and voice options to the audio generator.
+4. Audio generator synthesizes WAV/MP3 output and stores it in audio storage.
+5. BFF records generated audio metadata for the UI.
+
+## Technology Stack
+
+- **Web app:** TanStack Start, TanStack Router, TanStack Form, React, Vite.
+- **Validation:** Zod schemas shared between forms, server functions, and storage parsing.
+- **Styling:** Tailwind CSS with local UI components.
+- **Markdown preview:** `marked`, with raw HTML escaped and unsafe URLs blocked.
+- **Audio generation:** Python service using Kokoro.
+- **Audio output:** WAV via `soundfile`, MP3 conversion through FFmpeg.
+- **Monorepo tooling:** npm workspaces and Turborepo.
+- **Quality checks:** ESLint, Prettier, Ruff, TypeScript, Python compile checks, Python unittest.
+
+## Running Locally
 
 Use Node through nvm and npm for this repository. The root `package.json` and `package-lock.json` are the source of truth for JavaScript dependencies.
-
-Install JavaScript dependencies from the repository root:
-
-```bash
-npm install
-```
-
-The Python service lives in `audio-generator/` and uses a disposable local virtual environment at:
-
-```text
-audio-generator/.venv
-```
-
-Do not copy this folder between machines or repo locations. If the repo moves, delete `audio-generator/.venv` and recreate it.
-
-The shortest setup path from the repository root is:
-
-```bash
-npm run setup:audio
-```
-
-That command creates `audio-generator/.venv` when it is missing and installs `audio-generator/requirements.txt` plus the Python dev tools in `audio-generator/requirements-dev.txt`.
-
-### Git Bash Setup
-
-From the repository root:
-
-```bash
-npm install
-npm run setup:audio
-npm run dev
-```
-
-To recreate a broken or moved Python venv in Git Bash:
-
-```bash
-rm -rf audio-generator/.venv
-npm run setup:audio
-```
-
-Manual Git Bash setup is also fine:
-
-```bash
-cd audio-generator
-py -3.12 -m venv .venv
-source .venv/Scripts/activate
-python -m pip install -r requirements.txt
-deactivate
-cd ..
-```
-
-### PowerShell Setup
 
 From the repository root:
 
@@ -96,85 +50,83 @@ npm run setup:audio
 npm run dev
 ```
 
-To recreate a broken or moved Python venv in PowerShell:
+Open:
+
+```text
+http://localhost:3000
+```
+
+`npm run dev` starts both the TanStack Start app and the local Python audio generator through Turborepo.
+
+You can also run each side separately:
+
+```powershell
+npm run dev:web
+npm run dev:audio
+```
+
+The audio generator listens locally by default:
+
+```text
+http://127.0.0.1:8765
+```
+
+If the audio generator uses another URL, set this before starting the web app:
+
+```powershell
+$env:AUDIO_GENERATOR_URL = "http://127.0.0.1:8765"
+npm run dev
+```
+
+## Local Requirements
+
+- Node `24.x`
+- npm `11.x`
+- Python `3.12`
+- FFmpeg for MP3 output
+
+The Python virtual environment is created at:
+
+```text
+audio-generator/.venv
+```
+
+Do not copy this virtual environment between machines or repo locations. If the repo moves, recreate it:
 
 ```powershell
 Remove-Item -LiteralPath .\audio-generator\.venv -Recurse -Force
 npm run setup:audio
 ```
 
-Manual PowerShell setup is also fine:
-
-```powershell
-cd .\audio-generator
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-deactivate
-cd ..
-```
-
-If the `py` launcher cannot find Python, use the installed executable directly:
+If the Python launcher cannot find Python 3.12, create the venv manually:
 
 ```powershell
 cd .\audio-generator
 & "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe" -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 deactivate
 cd ..
 ```
 
-When opening the repository root in VS Code, select the Python interpreter at:
+For VS Code/Pylance, select:
 
 ```text
 audio-generator\.venv\Scripts\python.exe
 ```
 
-The root `pyrightconfig.json` also points Pylance at `audio-generator/.venv` and `audio-generator/src`.
+## Storage Model
 
-For MP3 output, install FFmpeg and either:
+Audiofier keeps source text and generated audio separate.
 
-- add `ffmpeg.exe` to `PATH`, or
-- keep it in a common location like `C:\Users\<you>\Downloads\ffmpeg\bin\ffmpeg.exe`, or
-- pass `--ffmpeg-path "C:\path\to\ffmpeg.exe"`
-
-## Workspace Commands
-
-Run both local services through Turborepo from the repository root:
-
-```powershell
-npm run dev
-```
-
-That starts the Python audio service and the TanStack Start app in one terminal. You can still run each side separately:
-
-```powershell
-npm run dev:audio
-npm run dev:web
-```
-
-Check the workspace before committing:
-
-```powershell
-npm run format:check
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-```
-
-`format:check` runs Prettier and Ruff formatting checks. `lint` runs ESLint and Ruff. `typecheck` compiles the Python files and checks the web app. `test` runs the Python regression tests. `build` runs the web production build and the Python compile check.
-
-## Lesson Storage
-
-The web app owns the lesson library. It stores audio groups and chapter markdowns under:
+Text storage:
 
 ```text
 storage/markdowns/groups/
 ```
 
-Each group has a `group.json` file and chapter files:
+Each group has metadata and chapter files:
 
 ```text
 storage/markdowns/groups/my-book/
@@ -184,172 +136,84 @@ storage/markdowns/groups/my-book/
     introduction.md
 ```
 
-Generated audio is written under:
+Audio storage:
 
 ```text
 storage/generated/groups/
 ```
 
-That folder is ignored by Git so large WAV and MP3 files do not get committed. Markdown source files are not ignored, so you can decide per change whether lesson content belongs in the repository.
+Generated audio is ignored by Git so large WAV and MP3 files do not get committed by accident. Markdown source files are not ignored, so you can choose when lesson content should be versioned.
 
-The TanStack server functions handle create, edit, delete, and generation requests. The Python API is only responsible for turning supplied text into audio.
+## Audio Generation
 
-The web UI is split into pages:
+The web app sends chapter Markdown to the BFF. The BFF sends the text to the Python audio generator, which:
+
+1. strips common Markdown syntax,
+2. preserves natural paragraph and sentence boundaries,
+3. splits long text into Kokoro-safe chunks,
+4. synthesizes chunk audio,
+5. merges chunks into a final WAV,
+6. converts the WAV to MP3 unless `wavOnly` is enabled.
+
+Current English defaults:
 
 ```text
-/groups                                      list audio groups
-/groups/new                                  create a group
-/groups/:groupId                             list lessons in a group
-/groups/:groupId/edit                        update a group
-/groups/:groupId/lessons/new                 create a lesson
-/groups/:groupId/lessons/:chapterId          view and generate a lesson
-/groups/:groupId/lessons/:chapterId/edit     update a lesson
+voice: af_heart
+lang_code: a
+speed: 1.0
 ```
 
-Group and lesson forms use TanStack Form with Zod schemas. Lesson previews render markdown with `marked`, escape raw HTML, and allow only safe link or image URLs before inserting the generated markup into the page.
+Kokoro also performs internal phoneme-level chunking. Audiofier's chunking exists to keep long-form lessons manageable and to preserve intentional pauses between larger text sections.
 
-## Usage
+## Writing Markdown For TTS
+
+Write lessons as spoken prose first and rendered Markdown second.
+
+Recommended:
+
+- Use headings for structure.
+- Use complete sentences.
+- Keep paragraphs natural.
+- Use bullets only when each bullet reads well aloud.
+- Prefer explanatory prose over tables, raw links, footnotes, and code blocks.
+
+Avoid this when you want natural speech:
+
+```md
+| API    | Result |
+| ------ | ------ |
+| GET /x | 200    |
+
+[1] https://very-long-url.example.com
+
+- auth
+- db
+- cache
+```
+
+Prefer:
+
+```md
+The system has three main parts: authentication, database access, and caching.
+
+The API returns a successful response when the request is valid.
+```
+
+## CLI Usage
 
 Use the shell-neutral npm script from the repository root:
 
-```bash
-npm run generate -w audiofier-audio-generator -- ./lessons/fundamentals.md
-```
-
-For a quick local test, use the included sample lesson:
-
-```bash
-npm run generate:sample -w audiofier-audio-generator
+```powershell
+npm run generate -w audiofier-audio-generator -- .\audio-generator\lessons\sample.md --wav-only
 ```
 
 PowerShell and cmd can also use the Windows launcher:
 
 ```powershell
-.\audio-generator\tts.cmd .\lessons\fundamentals.md
+.\audio-generator\tts.cmd .\audio-generator\lessons\sample.md --wav-only
 ```
 
-For a quick local test, use the included sample lesson:
-
-```powershell
-.\audio-generator\tts.cmd .\lessons\sample.md --wav-only
-```
-
-Relative lesson paths are resolved from your current terminal directory first. If that file does not exist, the app falls back to the `audio-generator/` folder, so `.\audio-generator\tts.cmd lessons\sample.md --wav-only` works from the repo root. Relative output folders are created under `audio-generator/` by default.
-
-That single command now creates both:
-
-- `output/fundamentals/fundamentals.wav`
-- `output/fundamentals/fundamentals.mp3`
-
-Run the Python script directly in PowerShell:
-
-```powershell
-.\audio-generator\.venv\Scripts\python.exe .\audio-generator\audio.py .\audio-generator\lessons\fundamentals.md
-```
-
-Generate only WAV:
-
-```bash
-npm run generate -w audiofier-audio-generator -- ./lessons/fundamentals.md --wav-only
-```
-
-Keep intermediate chunk files:
-
-```bash
-npm run generate -w audiofier-audio-generator -- ./lessons/fundamentals.md --keep-chunks
-```
-
-Change voice and speed:
-
-```bash
-npm run generate -w audiofier-audio-generator -- ./lessons/fundamentals.md --voice af_bella --speed 0.96
-```
-
-## HTTP server
-
-Run the isolated audio generator service:
-
-```bash
-npm run dev:audio
-```
-
-PowerShell and cmd can also use the Windows launcher:
-
-```powershell
-.\audio-generator\server.cmd
-```
-
-By default it listens only on your machine:
-
-```text
-http://127.0.0.1:8765
-```
-
-Check that the service is alive:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8765/health
-```
-
-Queue generation from raw text, which is what the web app sends to the Python service through the TanStack BFF:
-
-```powershell
-$body = @{
-  text = "# Web Lesson`n`nThis lesson came from an HTTP request."
-  stem = "web-lesson"
-  suffix = ".md"
-  wavOnly = $true
-} | ConvertTo-Json
-
-$job = Invoke-RestMethod http://127.0.0.1:8765/generate-jobs -Method Post -ContentType "application/json" -Body $body
-Invoke-RestMethod "http://127.0.0.1:8765/generate-jobs/$($job.jobId)"
-```
-
-## Web app
-
-The TanStack Start app lives in `web/`. Its server functions call the Python audio service.
-
-From the repository root, start both services together:
-
-```powershell
-npm run dev
-```
-
-Open `http://localhost:3000`.
-
-Or start the Python server first:
-
-```powershell
-.\audio-generator\server.cmd
-```
-
-In a second terminal:
-
-```powershell
-cd .\web
-npm run dev
-```
-
-If the audio service uses another URL, set `AUDIO_GENERATOR_URL` before starting the web app:
-
-```powershell
-$env:AUDIO_GENERATOR_URL = "http://127.0.0.1:8765"
-npm run dev
-```
-
-## Outputs
-
-By default files are written into a lesson folder:
-
-- `output/fundamentals/fundamentals.wav`
-- `output/fundamentals/fundamentals.mp3` by default
-- `output/fundamentals/chunks/...` if `--keep-chunks` is enabled
-
-If you use `--output-dir custom-output`, the result becomes:
-
-- `custom-output/fundamentals/fundamentals.wav`
-
-## Main options
+Common options:
 
 ```text
 input                 Path to a .md or .txt file
@@ -366,9 +230,35 @@ input                 Path to a .md or .txt file
 --mp3-bitrate         MP3 bitrate, for example 96k or 128k
 ```
 
-## Notes
+## Development Commands
 
-- The script strips common markdown formatting so lessons sound cleaner when read aloud.
-- The first run can be slower because the model and voice assets may need to download or warm up.
-- English defaults are set for the current lesson examples: `lang_code=a`, `voice=af_heart`.
-- `tts.ps1` is included too, but some Windows machines block PowerShell scripts by default. `tts.cmd` is the safer launcher.
+Run checks before committing:
+
+```powershell
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Command responsibilities:
+
+- `format:check` runs Prettier and Ruff formatting checks.
+- `lint` runs ESLint and Ruff.
+- `typecheck` runs TypeScript checks and Python compile checks.
+- `test` runs Python regression tests.
+- `build` runs the production web build and Python compile check.
+
+## Repository Layout
+
+The important workspaces are:
+
+```text
+web/                TanStack Start app, BFF server functions, UI components
+audio-generator/    Python Kokoro audio generator service and CLI
+storage/            Local source text and generated audio metadata/output
+docs/assets/        Documentation images and diagrams
+```
+
+The repository is a local application workspace, not a hosted SaaS layout. Runtime data belongs in `storage/`; generated audio remains local unless you intentionally copy or commit it.
