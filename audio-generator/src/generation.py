@@ -70,11 +70,11 @@ def validate_text_suffix(suffix: str) -> str:
 
 
 def validate_generation_options(options: GenerationOptions) -> None:
-    from audio_generation import QWEN_CUSTOM_BACKEND_ID, QWEN_CUSTOM_SPEAKERS
+    from audio_generation import QWEN_CUSTOM_BACKEND_IDS, QWEN_CUSTOM_SPEAKERS
 
-    if options.backend not in {DEFAULT_BACKEND, QWEN_CUSTOM_BACKEND_ID}:
+    if options.backend not in {DEFAULT_BACKEND, *QWEN_CUSTOM_BACKEND_IDS}:
         raise ValueError(f"Unsupported TTS backend: {options.backend}.")
-    if options.backend == QWEN_CUSTOM_BACKEND_ID and options.voice not in QWEN_CUSTOM_SPEAKERS:
+    if options.backend in QWEN_CUSTOM_BACKEND_IDS and options.voice not in QWEN_CUSTOM_SPEAKERS:
         supported = ", ".join(sorted(QWEN_CUSTOM_SPEAKERS))
         raise ValueError(f"Unsupported Qwen speaker: {options.voice}. Supported speakers: {supported}.")
     if options.speed <= 0:
@@ -102,7 +102,7 @@ def generate_audio_from_cleaned_text(
     progress_callback: ProgressCallback | None = None,
 ) -> GenerationResult:
     from audio_generation import (
-        QWEN_CUSTOM_BACKEND_ID,
+        QWEN_CUSTOM_BACKEND_IDS,
         convert_wav_to_mp3,
         resolve_ffmpeg,
         save_chunk_wavs,
@@ -136,10 +136,11 @@ def generate_audio_from_cleaned_text(
     lesson_output_dir = options.output_dir / output_stem
 
     sample_rate = 24000
-    if options.backend == QWEN_CUSTOM_BACKEND_ID:
+    if options.backend in QWEN_CUSTOM_BACKEND_IDS:
         wavs, sample_rate = synthesize_qwen_custom_chunks(
             chunks=chunks,
             speaker=options.voice,
+            backend=options.backend,
             progress_callback=progress_callback,
         )
     else:

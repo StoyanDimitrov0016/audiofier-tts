@@ -25,7 +25,7 @@ from generation import (
     validate_generation_options,
 )
 from paths import PROJECT_ROOT, resolve_output_dir
-from voices import DEFAULT_VOICE_ID, QWEN_CUSTOM_BACKEND_ID, QWEN_CUSTOM_DEFAULT_SPEAKER, list_voices
+from voices import DEFAULT_VOICE_ID, QWEN_CUSTOM_BACKEND_IDS, QWEN_CUSTOM_DEFAULT_SPEAKER, list_voices
 
 MAX_REQUEST_BYTES = 2_000_000
 MAX_QUEUED_JOBS = 8
@@ -178,7 +178,7 @@ def validate_payload_keys(payload: dict[str, Any]) -> None:
 def options_from_payload(payload: dict[str, Any], config: ServerConfig) -> GenerationOptions:
     output_dir_value = get_string(payload, "outputDir", str(config.output_dir))
     backend = get_string(payload, "backend", DEFAULT_BACKEND)
-    default_voice = QWEN_CUSTOM_DEFAULT_SPEAKER if backend == QWEN_CUSTOM_BACKEND_ID else DEFAULT_VOICE
+    default_voice = QWEN_CUSTOM_DEFAULT_SPEAKER if backend in QWEN_CUSTOM_BACKEND_IDS else DEFAULT_VOICE
     options = GenerationOptions(
         output_dir=resolve_output_dir(output_dir_value),
         backend=backend,

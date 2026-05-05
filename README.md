@@ -127,6 +127,7 @@ Runtime model files and AI caches belong in the project-local ignored folder:
 .local-tts-ai/
   models/kokoro-82m/
   models/qwen3-tts-0-6b-custom/
+  models/qwen3-tts-1-7b-custom/
   models/qwen3-tts-tokenizer-12hz/
   tools/ffmpeg.exe
   tools/sox/sox.exe
@@ -141,6 +142,7 @@ Download models manually from the repository root:
 ```powershell
 huggingface-cli download hexgrad/Kokoro-82M --local-dir ".local-tts-ai\models\kokoro-82m"
 huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir ".local-tts-ai\models\qwen3-tts-0-6b-custom"
+huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --local-dir ".local-tts-ai\models\qwen3-tts-1-7b-custom"
 huggingface-cli download Qwen/Qwen3-TTS-Tokenizer-12Hz --local-dir ".local-tts-ai\models\qwen3-tts-tokenizer-12hz"
 ```
 
@@ -155,13 +157,14 @@ The audio generator defaults caches into `.local-tts-ai/cache`. You can override
 ```powershell
 $env:KOKORO_MODEL_PATH = ".local-tts-ai\models\kokoro-82m"
 $env:QWEN_TTS_MODEL_PATH = ".local-tts-ai\models\qwen3-tts-0-6b-custom"
+$env:QWEN_TTS_1_7B_MODEL_PATH = ".local-tts-ai\models\qwen3-tts-1-7b-custom"
 $env:QWEN_TTS_TOKENIZER_PATH = ".local-tts-ai\models\qwen3-tts-tokenizer-12hz"
 $env:FFMPEG_PATH = ".local-tts-ai\tools\ffmpeg.exe"
 $env:HF_HOME = ".local-tts-ai\cache\huggingface"
 $env:TORCH_HOME = ".local-tts-ai\cache\torch"
 ```
 
-Kokoro remains the default TTS backend. Qwen is used only when the request selects backend `qwen-0.6b-custom` with supported speakers `Ryan` or `Aiden`.
+Kokoro remains the default TTS backend. Qwen is used only when the request selects backend `qwen-0.6b-custom` or `qwen-1.7b-custom` with supported speakers `Ryan` or `Aiden`. `QWEN_TTS_MODEL_PATH` is the compatibility override for the 0.6B model; use `QWEN_TTS_0_6B_MODEL_PATH` or `QWEN_TTS_1_7B_MODEL_PATH` when you want model-specific overrides.
 
 For MP3 output, install FFmpeg and either add it to PATH or keep it project-local at:
 

@@ -15,7 +15,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 import local_runtime
-from audio_generation import resolve_ffmpeg, synthesize_chunks
+from audio_generation import resolve_ffmpeg, resolve_qwen_custom_model_source, synthesize_chunks
 from audio_server import (
     JOB_STORE,
     ApiError,
@@ -179,6 +179,20 @@ class ServerRequestTests(unittest.TestCase):
         self.assertEqual(options.backend, "qwen-0.6b-custom")
         self.assertEqual(options.voice, "Aiden")
 
+    def test_options_from_payload_defaults_qwen_1_7b_voice_to_ryan(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        options = options_from_payload(
+            {
+                "backend": "qwen-1.7b-custom",
+                "wavOnly": True,
+            },
+            config,
+        )
+
+        self.assertEqual(options.backend, "qwen-1.7b-custom")
+        self.assertEqual(options.voice, "Ryan")
+
     def test_parse_generation_request_rejects_unknown_qwen_speaker(self) -> None:
         output_dir = ROOT / "server-output"
         config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
@@ -301,6 +315,23 @@ class LocalRuntimeTests(unittest.TestCase):
             self.assertEqual(entries[:2], [str(LOCAL_SOX_DIR), str(LOCAL_TOOLS_DIR)])
 
 
+class QwenModelResolutionTests(unittest.TestCase):
+    def test_resolve_qwen_custom_model_source_uses_1_7b_env_path(self) -> None:
+        expected = (ROOT.parent / ".local-tts-ai" / "models" / "qwen3-tts-1-7b-custom").resolve()
+        with patch.dict("audio_generation.os.environ", {"QWEN_TTS_1_7B_MODEL_PATH": str(expected)}):
+            resolved = resolve_qwen_custom_model_source("qwen-1.7b-custom")
+
+        self.assertEqual(resolved, str(expected))
+
+    def test_resolve_qwen_custom_model_source_uses_1_7b_default_path(self) -> None:
+        expected = ROOT.parent / ".local-tts-ai" / "models" / "qwen3-tts-1-7b-custom"
+        with patch.dict("audio_generation.os.environ", {}, clear=True):
+            with patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected):
+                resolved = resolve_qwen_custom_model_source("qwen-1.7b-custom")
+
+        self.assertEqual(resolved, str(expected))
+
+
 class SynthesisTests(unittest.TestCase):
     def test_synthesize_chunks_merges_pipeline_fragments_per_outer_chunk(self) -> None:
         fake_module = ModuleType("kokoro")
@@ -360,6 +391,27 @@ class GenerationBackendTests(unittest.TestCase):
 
         synthesize.assert_called_once()
         self.assertEqual(synthesize.call_args.kwargs["speaker"], "Aiden")
+        self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-0.6b-custom")
+        self.assertIsNone(result.mp3_path)
+
+    def test_generate_audio_from_cleaned_text_uses_qwen_1_7b_backend(self) -> None:
+        from generation import generate_audio_from_cleaned_text
+
+        output_dir = ROOT / ".test-tmp" / "qwen-1-7b-backend"
+        options = GenerationOptions(
+            output_dir=output_dir,
+            backend="qwen-1.7b-custom",
+            voice="Ryan",
+            wav_only=True,
+        )
+        expected = [np.array([0.1, 0.2, 0.3], dtype=np.float32)]
+
+        with patch("audio_generation.synthesize_qwen_custom_chunks", return_value=(expected, 24000)) as synthesize:
+            with patch("audio_generation.save_final_wav", return_value=(output_dir / "sample" / "sample.wav", 1.0)):
+                result = generate_audio_from_cleaned_text("Hello from Qwen.", "sample", options)
+
+        synthesize.assert_called_once()
+        self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-1.7b-custom")
         self.assertIsNone(result.mp3_path)
 
 

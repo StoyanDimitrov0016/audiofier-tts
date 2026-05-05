@@ -23,14 +23,26 @@ DEFAULT_FFMPEG_PATH = LOCAL_TTS_AI_DIR / "tools" / FFMPEG_EXECUTABLE_NAME
 KOKORO_MODEL_ID = "hexgrad/Kokoro-82M"
 DEFAULT_KOKORO_MODEL_PATH = LOCAL_TTS_AI_DIR / "models" / "kokoro-82m"
 QWEN_CUSTOM_BACKEND_ID = "qwen-0.6b-custom"
-QWEN_CUSTOM_MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
-DEFAULT_QWEN_CUSTOM_MODEL_PATH = LOCAL_TTS_AI_DIR / "models" / "qwen3-tts-0-6b-custom"
+QWEN_CUSTOM_1_7B_BACKEND_ID = "qwen-1.7b-custom"
+QWEN_CUSTOM_MODEL_IDS = {
+    QWEN_CUSTOM_BACKEND_ID: "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+    QWEN_CUSTOM_1_7B_BACKEND_ID: "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+}
+QWEN_CUSTOM_MODEL_PATHS = {
+    QWEN_CUSTOM_BACKEND_ID: LOCAL_TTS_AI_DIR / "models" / "qwen3-tts-0-6b-custom",
+    QWEN_CUSTOM_1_7B_BACKEND_ID: LOCAL_TTS_AI_DIR / "models" / "qwen3-tts-1-7b-custom",
+}
+QWEN_CUSTOM_MODEL_ENV_VARS = {
+    QWEN_CUSTOM_BACKEND_ID: ("QWEN_TTS_0_6B_MODEL_PATH", "QWEN_TTS_MODEL_PATH"),
+    QWEN_CUSTOM_1_7B_BACKEND_ID: ("QWEN_TTS_1_7B_MODEL_PATH",),
+}
+QWEN_CUSTOM_BACKEND_IDS = frozenset(QWEN_CUSTOM_MODEL_IDS)
 DEFAULT_QWEN_TOKENIZER_PATH = LOCAL_TTS_AI_DIR / "models" / "qwen3-tts-tokenizer-12hz"
 QWEN_CUSTOM_DEFAULT_SPEAKER = "Ryan"
 QWEN_CUSTOM_SPEAKERS = frozenset({"Ryan", "Aiden"})
 ProgressCallback = Callable[[dict[str, Any]], None]
 
-_QWEN_MODEL: Any | None = None
+_QWEN_MODELS: dict[str, Any] = {}
 _QWEN_MODEL_LOCK = threading.Lock()
 
 configure_local_runtime()
@@ -69,13 +81,19 @@ def resolve_kokoro_voice(voice: str, model_path: Path | None) -> str:
     return voice
 
 
-def resolve_qwen_custom_model_source() -> str:
-    configured = os.environ.get("QWEN_TTS_MODEL_PATH")
-    if configured:
-        return str(resolve_project_path(configured))
-    if DEFAULT_QWEN_CUSTOM_MODEL_PATH.exists():
-        return str(DEFAULT_QWEN_CUSTOM_MODEL_PATH)
-    return QWEN_CUSTOM_MODEL_ID
+def resolve_qwen_custom_model_source(backend: str) -> str:
+    if backend not in QWEN_CUSTOM_MODEL_IDS:
+        raise ValueError(f"Unsupported Qwen backend: {backend}.")
+
+    for env_var in QWEN_CUSTOM_MODEL_ENV_VARS[backend]:
+        configured = os.environ.get(env_var)
+        if configured:
+            return str(resolve_project_path(configured))
+
+    default_path = QWEN_CUSTOM_MODEL_PATHS[backend]
+    if default_path.exists():
+        return str(default_path)
+    return QWEN_CUSTOM_MODEL_IDS[backend]
 
 
 def suppress_known_runtime_noise() -> None:
@@ -183,12 +201,10 @@ def synthesize_chunks(
     return wavs
 
 
-def get_qwen_custom_model() -> Any:
-    global _QWEN_MODEL
-
+def get_qwen_custom_model(backend: str) -> Any:
     with _QWEN_MODEL_LOCK:
-        if _QWEN_MODEL is not None:
-            return _QWEN_MODEL
+        if backend in _QWEN_MODELS:
+            return _QWEN_MODELS[backend]
 
         import torch
 
@@ -214,26 +230,30 @@ def get_qwen_custom_model() -> Any:
         else:
             kwargs = {}
             print(
-                f"Warning: CUDA is not available. Loading {QWEN_CUSTOM_MODEL_ID} on CPU; "
+                f"Warning: CUDA is not available. Loading {QWEN_CUSTOM_MODEL_IDS[backend]} on CPU; "
                 "Qwen TTS generation will be very slow."
             )
 
-        model_source = resolve_qwen_custom_model_source()
+        model_source = resolve_qwen_custom_model_source(backend)
         print(f"Qwen model source: {model_source}")
-        _QWEN_MODEL = qwen_model_class.from_pretrained(model_source, **kwargs)
-        return _QWEN_MODEL
+        model = qwen_model_class.from_pretrained(model_source, **kwargs)
+        _QWEN_MODELS[backend] = model
+        return model
 
 
 def synthesize_qwen_custom_chunks(
     chunks: Iterable[str],
     speaker: str,
+    backend: str = QWEN_CUSTOM_BACKEND_ID,
     progress_callback: ProgressCallback | None = None,
 ) -> tuple[list[np.ndarray], int]:
+    if backend not in QWEN_CUSTOM_BACKEND_IDS:
+        raise ValueError(f"Unsupported Qwen backend: {backend}.")
     if speaker not in QWEN_CUSTOM_SPEAKERS:
         supported = ", ".join(sorted(QWEN_CUSTOM_SPEAKERS))
         raise ValueError(f"Unsupported Qwen speaker: {speaker}. Supported speakers: {supported}.")
 
-    model = get_qwen_custom_model()
+    model = get_qwen_custom_model(backend)
     chunk_list = list(chunks)
     wavs: list[np.ndarray] = []
     sample_rate = SAMPLE_RATE

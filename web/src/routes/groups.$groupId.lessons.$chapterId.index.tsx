@@ -34,6 +34,7 @@ const DEFAULT_AUDIO_BACKEND = "kokoro";
 const BACKEND_LABELS: Record<string, string> = {
   kokoro: "Kokoro",
   "qwen-0.6b-custom": "Qwen 0.6B CustomVoice",
+  "qwen-1.7b-custom": "Qwen 1.7B CustomVoice",
 };
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
