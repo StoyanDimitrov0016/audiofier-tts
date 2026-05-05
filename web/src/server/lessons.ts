@@ -156,6 +156,7 @@ export const startChapterAudioGeneration = createServerFn({ method: "POST" })
       text: chapter.markdown,
       stem: chapter.id,
       suffix: ".md",
+      backend: data.backend,
       voice: data.voice,
       langCode: data.langCode,
       speed: data.speed,

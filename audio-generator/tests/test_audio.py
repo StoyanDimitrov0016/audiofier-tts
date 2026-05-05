@@ -25,7 +25,7 @@ from audio_server import (
     parse_generation_request,
 )
 from cli import build_output_dir
-from generation import GenerationResult, sanitize_stem
+from generation import GenerationOptions, GenerationResult, sanitize_stem
 from paths import resolve_cli_input_path, resolve_output_dir
 from text_processing import make_chunks, merge_small_chunks, prepare_text_for_tts, strip_markdown
 
@@ -148,6 +148,50 @@ class ServerRequestTests(unittest.TestCase):
         self.assertEqual(request.suffix, ".md")
         self.assertTrue(request.options.wav_only)
 
+    def test_options_from_payload_defaults_qwen_voice_to_ryan(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        options = options_from_payload(
+            {
+                "backend": "qwen-0.6b-custom",
+                "wavOnly": True,
+            },
+            config,
+        )
+
+        self.assertEqual(options.backend, "qwen-0.6b-custom")
+        self.assertEqual(options.voice, "Ryan")
+
+    def test_options_from_payload_accepts_qwen_aiden(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        options = options_from_payload(
+            {
+                "backend": "qwen-0.6b-custom",
+                "voice": "Aiden",
+                "wavOnly": True,
+            },
+            config,
+        )
+
+        self.assertEqual(options.backend, "qwen-0.6b-custom")
+        self.assertEqual(options.voice, "Aiden")
+
+    def test_parse_generation_request_rejects_unknown_qwen_speaker(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+
+        with self.assertRaisesRegex(ApiError, "Unsupported Qwen speaker"):
+            parse_generation_request(
+                {
+                    "text": "Hello",
+                    "backend": "qwen-0.6b-custom",
+                    "voice": "NotRyan",
+                    "wavOnly": True,
+                },
+                config,
+            )
+
     def test_generate_from_request_runs_text_generation(self) -> None:
         output_dir = ROOT / "server-output"
         expected = GenerationResult(
@@ -258,6 +302,28 @@ class SynthesisTests(unittest.TestCase):
         self.assertIsNotNone(last_call)
         assert last_call is not None
         self.assertEqual(last_call["split_pattern"], r"\n{2,}")
+
+
+class GenerationBackendTests(unittest.TestCase):
+    def test_generate_audio_from_cleaned_text_uses_qwen_backend(self) -> None:
+        from generation import generate_audio_from_cleaned_text
+
+        output_dir = ROOT / ".test-tmp" / "qwen-backend"
+        options = GenerationOptions(
+            output_dir=output_dir,
+            backend="qwen-0.6b-custom",
+            voice="Aiden",
+            wav_only=True,
+        )
+        expected = [np.array([0.1, 0.2, 0.3], dtype=np.float32)]
+
+        with patch("audio_generation.synthesize_qwen_custom_chunks", return_value=(expected, 24000)) as synthesize:
+            with patch("audio_generation.save_final_wav", return_value=(output_dir / "sample" / "sample.wav", 1.0)):
+                result = generate_audio_from_cleaned_text("Hello from Qwen.", "sample", options)
+
+        synthesize.assert_called_once()
+        self.assertEqual(synthesize.call_args.kwargs["speaker"], "Aiden")
+        self.assertIsNone(result.mp3_path)
 
 
 class GenerationJobRunnerTests(unittest.TestCase):

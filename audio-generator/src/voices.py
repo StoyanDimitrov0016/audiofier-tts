@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 DEFAULT_VOICE_ID = "af_heart"
+QWEN_CUSTOM_BACKEND_ID = "qwen-0.6b-custom"
+QWEN_CUSTOM_DEFAULT_SPEAKER = "Ryan"
 
 
 @dataclass(frozen=True)
@@ -13,6 +15,7 @@ class Voice:
     language: str
     gender: str
     grade: str | None = None
+    backend: str = "kokoro"
 
 
 VOICES = [
@@ -70,6 +73,8 @@ VOICES = [
     Voice("pf_dora", "Dora", "p", "Brazilian Portuguese", "female"),
     Voice("pm_alex", "Alex", "p", "Brazilian Portuguese", "male"),
     Voice("pm_santa", "Santa", "p", "Brazilian Portuguese", "male"),
+    Voice("Ryan", "Ryan", "en", "English", "male", backend=QWEN_CUSTOM_BACKEND_ID),
+    Voice("Aiden", "Aiden", "en", "English", "male", backend=QWEN_CUSTOM_BACKEND_ID),
 ]
 
 

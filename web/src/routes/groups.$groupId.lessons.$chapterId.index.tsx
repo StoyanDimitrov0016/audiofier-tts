@@ -96,6 +96,7 @@ function LessonIndexPage() {
         data: {
           groupId: group.id,
           chapterId: chapter.id,
+          backend: selectedVoice?.backend,
           voice,
           langCode: selectedVoice?.lang_code,
           speed,

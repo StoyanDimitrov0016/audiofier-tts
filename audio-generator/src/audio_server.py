@@ -16,6 +16,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from generation import (
+    DEFAULT_BACKEND,
     DEFAULT_LANG_CODE,
     DEFAULT_VOICE,
     GenerationOptions,
@@ -24,7 +25,7 @@ from generation import (
     validate_generation_options,
 )
 from paths import PROJECT_ROOT, resolve_output_dir
-from voices import DEFAULT_VOICE_ID, list_voices
+from voices import DEFAULT_VOICE_ID, QWEN_CUSTOM_BACKEND_ID, QWEN_CUSTOM_DEFAULT_SPEAKER, list_voices
 
 MAX_REQUEST_BYTES = 2_000_000
 MAX_QUEUED_JOBS = 8
@@ -32,6 +33,7 @@ SUPPORTED_GENERATION_REQUEST_KEYS = frozenset(
     {
         "langCode",
         "outputDir",
+        "backend",
         "speed",
         "stem",
         "suffix",
@@ -175,14 +177,20 @@ def validate_payload_keys(payload: dict[str, Any]) -> None:
 
 def options_from_payload(payload: dict[str, Any], config: ServerConfig) -> GenerationOptions:
     output_dir_value = get_string(payload, "outputDir", str(config.output_dir))
+    backend = get_string(payload, "backend", DEFAULT_BACKEND)
+    default_voice = QWEN_CUSTOM_DEFAULT_SPEAKER if backend == QWEN_CUSTOM_BACKEND_ID else DEFAULT_VOICE
     options = GenerationOptions(
         output_dir=resolve_output_dir(output_dir_value),
-        voice=get_string(payload, "voice", DEFAULT_VOICE),
+        backend=backend,
+        voice=get_string(payload, "voice", default_voice),
         speed=get_float(payload, "speed", 1.0),
         lang_code=get_string(payload, "langCode", DEFAULT_LANG_CODE),
         wav_only=get_bool(payload, "wavOnly", False),
     )
-    validate_generation_options(options)
+    try:
+        validate_generation_options(options)
+    except ValueError as error:
+        raise ApiError(HTTPStatus.BAD_REQUEST, str(error)) from error
     return options
 
 
