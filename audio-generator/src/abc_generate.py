@@ -71,6 +71,28 @@ def default_cases(styles: list[str]) -> list[AbcCase]:
     return cases
 
 
+def quick_cases(style: str = "warm") -> list[AbcCase]:
+    return [
+        AbcCase(id="kokoro-af-heart", backend="kokoro", voice="af_heart"),
+        AbcCase(
+            id=f"qwen-0.6b-custom-aiden-{style}",
+            backend="qwen-0.6b-custom",
+            voice="Aiden",
+            style=style,
+            instruct=QWEN_STYLES[style],
+            lang_code="en",
+        ),
+        AbcCase(
+            id=f"qwen-1.7b-custom-aiden-{style}",
+            backend="qwen-1.7b-custom",
+            voice="Aiden",
+            style=style,
+            instruct=QWEN_STYLES[style],
+            lang_code="en",
+        ),
+    ]
+
+
 def read_cleaned_text(input_path: Path | None) -> tuple[str, str]:
     if input_path is None:
         return DEFAULT_TEXT.strip(), "built-in abc excerpt"
@@ -89,6 +111,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", help="Optional .md or .txt path. Defaults to a short built-in narration excerpt.")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR), help="Output directory for ABC run folders.")
     parser.add_argument("--styles", nargs="+", choices=sorted(QWEN_STYLES), default=["neutral", "plain", "warm"])
+    parser.add_argument("--quick", action="store_true", help="Run one representative voice per model.")
+    parser.add_argument("--quick-style", choices=sorted(QWEN_STYLES), default="warm", help="Qwen style for --quick.")
     parser.add_argument("--wav-only", action="store_true", help="Skip MP3 conversion.")
     parser.add_argument("--dry-run", action="store_true", help="Print planned runs without generating audio.")
     return parser.parse_args()
@@ -101,7 +125,7 @@ def main() -> None:
     run_id = time.strftime("abc-%Y%m%dT%H%M%S")
     output_dir = (Path(args.output_dir) if Path(args.output_dir).is_absolute() else PROJECT_ROOT / args.output_dir) / run_id
     output_dir = output_dir.resolve()
-    cases = default_cases(args.styles)
+    cases = quick_cases(args.quick_style) if args.quick else default_cases(args.styles)
 
     print(f"ABC source: {source}")
     print(f"Characters: {len(cleaned):,}")
@@ -112,6 +136,7 @@ def main() -> None:
         "source": source,
         "characters": len(cleaned),
         "outputDir": str(output_dir),
+        "mode": "quick" if args.quick else "full",
         "cases": [],
     }
 

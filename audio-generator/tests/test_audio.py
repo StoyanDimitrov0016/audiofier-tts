@@ -15,7 +15,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 import local_runtime
-from abc_generate import default_cases, read_cleaned_text
+from abc_generate import default_cases, quick_cases, read_cleaned_text
 from audio_generation import resolve_ffmpeg, resolve_qwen_custom_model_source, synthesize_chunks
 from audio_server import (
     JOB_STORE,
@@ -123,6 +123,15 @@ class AbcGenerationTests(unittest.TestCase):
 
         self.assertIn("Mara kept one lantern", cleaned)
         self.assertEqual(source, "built-in abc excerpt")
+
+    def test_quick_cases_use_one_voice_per_model(self) -> None:
+        cases = quick_cases("warm")
+
+        self.assertEqual([case.id for case in cases], [
+            "kokoro-af-heart",
+            "qwen-0.6b-custom-aiden-warm",
+            "qwen-1.7b-custom-aiden-warm",
+        ])
 
 
 class OutputLayoutTests(unittest.TestCase):

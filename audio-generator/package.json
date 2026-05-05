@@ -14,6 +14,7 @@
     "generate": "node ./scripts/python.mjs audio.py",
     "generate:sample": "node ./scripts/python.mjs audio.py ./lessons/sample.md --wav-only",
     "chunks": "node ./scripts/python.mjs src/chunk_review.py",
-    "abc": "node ./scripts/python.mjs src/abc_generate.py"
+    "abc": "node ./scripts/python.mjs src/abc_generate.py",
+    "abc:quick": "node ./scripts/python.mjs src/abc_generate.py --quick --wav-only"
   }
 }
