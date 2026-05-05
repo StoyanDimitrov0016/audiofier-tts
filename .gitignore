@@ -1,4 +1,11 @@
 # -------------------------------------------------------------------
+# Local TTS AI runtime assets
+# Model weights and local AI caches used by this project only.
+# These are large and machine-specific, so they must not be committed.
+# -------------------------------------------------------------------
+.local-tts-ai/
+
+# -------------------------------------------------------------------
 # Python environments
 # Ignore local virtual environments, including .venv, .venv-qwen, etc.
 # -------------------------------------------------------------------
@@ -32,7 +39,7 @@ output/
 
 # -------------------------------------------------------------------
 # Local storage
-# Keep storage/generated/.gitkeep, but ignore generated files.
+# Keep storage/audio/.gitkeep and storage/lessons/.gitkeep, but ignore generated/private files.
 # -------------------------------------------------------------------
 /storage/*
 !/storage/audio/
