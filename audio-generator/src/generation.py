@@ -39,6 +39,9 @@ class GenerationResult:
     chunk_count: int
     cleaned_character_count: int
     duration_seconds: float
+    backend: str
+    voice: str
+    model_source: str | None = None
 
     @property
     def formatted_duration(self) -> str:
@@ -105,6 +108,8 @@ def generate_audio_from_cleaned_text(
         QWEN_CUSTOM_BACKEND_IDS,
         convert_wav_to_mp3,
         resolve_ffmpeg,
+        resolve_kokoro_model_source,
+        resolve_qwen_custom_model_source,
         save_chunk_wavs,
         save_final_wav,
         suppress_known_runtime_noise,
@@ -136,7 +141,9 @@ def generate_audio_from_cleaned_text(
     lesson_output_dir = options.output_dir / output_stem
 
     sample_rate = 24000
+    model_source: str | None
     if options.backend in QWEN_CUSTOM_BACKEND_IDS:
+        model_source = resolve_qwen_custom_model_source(options.backend)
         wavs, sample_rate = synthesize_qwen_custom_chunks(
             chunks=chunks,
             speaker=options.voice,
@@ -144,6 +151,7 @@ def generate_audio_from_cleaned_text(
             progress_callback=progress_callback,
         )
     else:
+        model_source = resolve_kokoro_model_source(options.repo_id)
         wavs = synthesize_chunks(
             chunks=chunks,
             voice=options.voice,
@@ -202,6 +210,9 @@ def generate_audio_from_cleaned_text(
         chunk_count=len(chunks),
         cleaned_character_count=len(cleaned),
         duration_seconds=duration_seconds,
+        backend=options.backend,
+        voice=options.voice,
+        model_source=model_source,
     )
 
 

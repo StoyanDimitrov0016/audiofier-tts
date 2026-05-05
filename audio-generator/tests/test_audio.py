@@ -217,6 +217,9 @@ class ServerRequestTests(unittest.TestCase):
             chunk_count=1,
             cleaned_character_count=12,
             duration_seconds=1.5,
+            backend="kokoro",
+            voice="af_heart",
+            model_source="hexgrad/Kokoro-82M",
         )
 
         request = parse_generation_request(
@@ -392,6 +395,9 @@ class GenerationBackendTests(unittest.TestCase):
         synthesize.assert_called_once()
         self.assertEqual(synthesize.call_args.kwargs["speaker"], "Aiden")
         self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-0.6b-custom")
+        self.assertEqual(result.backend, "qwen-0.6b-custom")
+        self.assertEqual(result.voice, "Aiden")
+        self.assertIsNotNone(result.model_source)
         self.assertIsNone(result.mp3_path)
 
     def test_generate_audio_from_cleaned_text_uses_qwen_1_7b_backend(self) -> None:
@@ -412,6 +418,9 @@ class GenerationBackendTests(unittest.TestCase):
 
         synthesize.assert_called_once()
         self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-1.7b-custom")
+        self.assertEqual(result.backend, "qwen-1.7b-custom")
+        self.assertEqual(result.voice, "Ryan")
+        self.assertIsNotNone(result.model_source)
         self.assertIsNone(result.mp3_path)
 
 
@@ -437,6 +446,9 @@ class GenerationJobRunnerTests(unittest.TestCase):
             chunk_count=1,
             cleaned_character_count=11,
             duration_seconds=1.0,
+            backend="kokoro",
+            voice="af_heart",
+            model_source="hexgrad/Kokoro-82M",
         )
 
         with patch("audio_server.generate_from_request", return_value=expected):

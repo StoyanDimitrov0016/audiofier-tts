@@ -214,6 +214,9 @@ def result_to_payload(result: GenerationResult) -> dict[str, Any]:
         "cleanedCharacterCount": result.cleaned_character_count,
         "durationSeconds": result.duration_seconds,
         "formattedDuration": result.formatted_duration,
+        "backend": result.backend,
+        "voice": result.voice,
+        "modelSource": result.model_source,
     }
 
 

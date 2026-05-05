@@ -16,6 +16,9 @@ export type GeneratedAudio = {
   cleanedCharacterCount: number;
   durationSeconds: number;
   formattedDuration: string;
+  backend?: string;
+  voice?: string;
+  modelSource?: string | null;
   generatedAt: string;
 };
 

@@ -89,6 +89,9 @@ export const GeneratedAudioSchema = z.object({
   cleanedCharacterCount: z.number(),
   durationSeconds: z.number(),
   formattedDuration: z.string(),
+  backend: z.string().optional(),
+  voice: z.string().optional(),
+  modelSource: z.string().nullable().optional(),
   generatedAt: z.string(),
 });
 

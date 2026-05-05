@@ -350,6 +350,9 @@ async function saveGenerationResult(input: {
     cleanedCharacterCount: input.result.cleanedCharacterCount,
     durationSeconds: input.result.durationSeconds,
     formattedDuration: input.result.formattedDuration,
+    backend: input.result.backend,
+    voice: input.result.voice,
+    modelSource: input.result.modelSource,
     generatedAt,
   };
 

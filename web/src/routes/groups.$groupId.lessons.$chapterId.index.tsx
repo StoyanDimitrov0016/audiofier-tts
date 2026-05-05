@@ -453,6 +453,9 @@ function LessonIndexPage() {
 
                 <dl className="grid gap-2.5">
                   {[
+                    ...(generatedAudio.backend ? [{ label: "model", value: generatedAudio.backend }] : []),
+                    ...(generatedAudio.voice ? [{ label: "voice", value: generatedAudio.voice }] : []),
+                    ...(generatedAudio.modelSource ? [{ label: "source", value: generatedAudio.modelSource }] : []),
                     { label: "output", value: generatedAudio.lessonOutputDir },
                     { label: "wav", value: generatedAudio.wavPath },
                     ...(generatedAudio.mp3Path ? [{ label: "mp3", value: generatedAudio.mp3Path }] : []),
