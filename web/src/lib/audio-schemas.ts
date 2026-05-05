@@ -21,9 +21,9 @@ export const GenerateAudioResultSchema = z.object({
   cleanedCharacterCount: z.number(),
   durationSeconds: z.number(),
   formattedDuration: z.string(),
-  backend: z.string(),
-  voice: z.string(),
-  modelSource: z.string().nullable(),
+  backend: z.string().optional(),
+  voice: z.string().optional(),
+  modelSource: z.string().nullable().optional(),
 });
 
 export const GenerateAudioProgressSchema = z.object({
