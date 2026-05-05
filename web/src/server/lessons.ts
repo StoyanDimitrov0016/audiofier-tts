@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { getAudioVoices, startAudioGenerationJob } from "./audio-generator-api";
+import { slugify } from "./lib/persistence";
 import {
   CreateChapterInputSchema,
   CreateGroupInputSchema,
@@ -52,6 +53,12 @@ function parseGenerateChapterInput(input: unknown) {
 
 function parseSaveChapterGenerationResultInput(input: unknown) {
   return SaveChapterGenerationResultInputSchema.parse(input);
+}
+
+function generationRunStem(chapterId: string, backend: string | undefined) {
+  const backendStem = slugify(backend ?? "kokoro", { fallback: "kokoro", maxLength: 40 });
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  return `${chapterId}-${backendStem}-${stamp}`;
 }
 
 async function getLessonRepository() {
@@ -154,7 +161,7 @@ export const startChapterAudioGeneration = createServerFn({ method: "POST" })
     const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
     const job = await startAudioGenerationJob({
       text: chapter.markdown,
-      stem: chapter.id,
+      stem: generationRunStem(chapter.id, data.backend),
       suffix: ".md",
       backend: data.backend,
       voice: data.voice,

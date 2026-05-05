@@ -44,6 +44,26 @@ function generatedMetadataPath(groupId: string, chapterId: string) {
   return path.join(generatedChapterDir(groupId, chapterId), "metadata.json");
 }
 
+function resolveGeneratedOutputDir(outputDir: string) {
+  return path.isAbsolute(outputDir) ? outputDir : path.resolve(storagePaths.repositoryRoot, outputDir);
+}
+
+async function removeGeneratedChapterArtifacts(groupId: string, chapterId: string) {
+  const groupDirPath = generatedGroupDir(groupId);
+
+  if (!(await pathExists(groupDirPath))) {
+    return;
+  }
+
+  const entries = await fs.readdir(groupDirPath, { withFileTypes: true });
+
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory() && (entry.name === chapterId || entry.name.startsWith(`${chapterId}-`)))
+      .map((entry) => fs.rm(path.join(groupDirPath, entry.name), { recursive: true, force: true }))
+  );
+}
+
 async function ensureStorage() {
   await ensureDir(markdownGroupsRoot);
   await ensureDir(generatedGroupsRoot);
@@ -314,7 +334,7 @@ async function updateChapter(input: {
   await fs.writeFile(markdownFilePath, input.markdown, "utf-8");
 
   if (markdownChanged) {
-    await fs.rm(generatedChapterDir(resolvedGroupId, input.chapterId), { recursive: true, force: true });
+    await removeGeneratedChapterArtifacts(resolvedGroupId, input.chapterId);
   }
 
   return {
@@ -330,7 +350,7 @@ async function deleteChapter(groupId: string, chapterId: string): Promise<void> 
 
   await fs.rm(chapterMetaPath(resolvedGroupId, chapterId), { force: true });
   await fs.rm(chapterMarkdownPath(resolvedGroupId, chapterId), { force: true });
-  await fs.rm(generatedChapterDir(resolvedGroupId, chapterId), { recursive: true, force: true });
+  await removeGeneratedChapterArtifacts(resolvedGroupId, chapterId);
 }
 
 async function saveGenerationResult(input: {
@@ -357,6 +377,7 @@ async function saveGenerationResult(input: {
   };
 
   await writeJson(generatedMetadataPath(resolvedGroupId, input.chapterId), generatedAudio);
+  await writeJson(path.join(resolveGeneratedOutputDir(input.result.lessonOutputDir), "metadata.json"), generatedAudio);
   return generatedAudio;
 }
 
