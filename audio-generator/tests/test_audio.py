@@ -28,10 +28,17 @@ from audio_server import (
 )
 from chunk_review import preview_chunks
 from cli import build_output_dir
-from generation import GenerationOptions, GenerationResult, min_chunk_chars_for_backend, sanitize_stem
+from generation import (
+    GenerationOptions,
+    GenerationResult,
+    max_chunk_chars_for_backend,
+    min_chunk_chars_for_backend,
+    pack_chunks_for_backend,
+    sanitize_stem,
+)
 from local_runtime import DEFAULT_HF_HOME, DEFAULT_TORCH_HOME, LOCAL_SOX_DIR, LOCAL_TOOLS_DIR, configure_local_runtime
 from paths import resolve_cli_input_path, resolve_output_dir
-from text_processing import make_chunks, merge_small_chunks, prepare_text_for_tts, strip_markdown
+from text_processing import make_chunks, merge_small_chunks, pack_chunks, prepare_text_for_tts, strip_markdown
 
 
 class MarkdownCleaningTests(unittest.TestCase):
@@ -106,6 +113,23 @@ class ChunkingTests(unittest.TestCase):
         self.assertEqual(min_chunk_chars_for_backend("kokoro"), 140)
         self.assertEqual(min_chunk_chars_for_backend("qwen-1.7b-custom"), 600)
 
+    def test_qwen_uses_larger_default_max_chunks(self) -> None:
+        self.assertEqual(max_chunk_chars_for_backend("kokoro", 1200), 1200)
+        self.assertEqual(max_chunk_chars_for_backend("qwen-1.7b-custom", 1200), 2000)
+        self.assertEqual(max_chunk_chars_for_backend("qwen-1.7b-custom", 900), 900)
+
+    def test_qwen_packs_chunks_to_max(self) -> None:
+        self.assertFalse(pack_chunks_for_backend("kokoro"))
+        self.assertTrue(pack_chunks_for_backend("qwen-1.7b-custom"))
+
+    def test_pack_chunks_combines_adjacent_chunks(self) -> None:
+        chunks = ["First paragraph.", "Second paragraph.", "Third paragraph."]
+
+        packed = pack_chunks(chunks, max_chars=80)
+
+        self.assertEqual(len(packed), 1)
+        self.assertIn("Second paragraph.", packed[0])
+
 
 class AbcGenerationTests(unittest.TestCase):
     def test_default_cases_include_kokoro_and_qwen_style_permutations(self) -> None:
@@ -122,6 +146,7 @@ class AbcGenerationTests(unittest.TestCase):
         cleaned, source = read_cleaned_text(None)
 
         self.assertIn("Mara kept one lantern", cleaned)
+        self.assertNotIn('"', cleaned)
         self.assertEqual(source, "built-in abc excerpt")
 
     def test_quick_cases_use_one_voice_per_model(self) -> None:

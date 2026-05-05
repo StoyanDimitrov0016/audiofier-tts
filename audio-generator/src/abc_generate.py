@@ -16,23 +16,21 @@ DEFAULT_TEXT = """Mara kept one lantern by the window.
 
 She lit it every evening before the forest turned dark, not because she expected visitors, but because the old road was easy to miss after rain.
 
-One night, a boy knocked on her door with mud on his shoes and a broken umbrella in his hand.
-
-"I lost the road," he said.
+One night, a boy knocked on her door with mud on his shoes and a broken umbrella in his hand. He told Mara that he had lost the road and could not see the stones beneath the leaves.
 
 Mara gave him a blanket, warmed tea by the fire, and pointed to the small light beside the glass.
 
-"A lantern cannot move the forest," she said, "but it can help someone choose the next step."
+She explained that a lantern could not move the forest, but it could help someone choose the next step.
 
 Years later, Mara looked down into the valley and saw lights in every window. Some were lamps, some were candles, and some were paper lanterns made by children.
 
-She never knew which house belonged to the boy, but she knew the lesson had traveled farther than he had.
+She never knew which house belonged to the boy from the rainy night, but she knew the lesson had traveled farther than he had.
 """
 
 QWEN_STYLES = {
-    "neutral": "Read in a calm, neutral audiobook narration style. Start gently in the same voice you will use throughout. Keep emotion restrained, avoid dramatic emphasis, and keep intonation steady between paragraphs.",
-    "plain": "Read clearly and evenly like a lecture recording. Start plainly, use minimal emotion, keep steady pacing, and avoid expressive rises at the beginning of each section.",
-    "warm": "Read with a warm audiobook tone. Start gently in a natural voice, keep the delivery intimate and restrained, and do not become theatrical or overly emotional.",
+    "neutral": "Read in one consistent narrator voice. Use a calm, neutral audiobook narration style. Do not act out characters or change voices for reported speech. Keep emotion restrained, avoid dramatic emphasis, and keep intonation steady between paragraphs.",
+    "plain": "Read in one consistent narrator voice, clearly and evenly like a lecture recording. Do not perform characters. Use minimal emotion, keep steady pacing, and avoid expressive rises at the beginning of each section.",
+    "warm": "Read in one consistent narrator voice with a warm audiobook tone. Do not act out characters or shift into dialogue performance. Keep the delivery intimate, restrained, and natural without becoming theatrical or overly emotional.",
 }
 
 

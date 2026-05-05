@@ -12,6 +12,8 @@ DEFAULT_REPO_ID = "hexgrad/Kokoro-82M"
 DEFAULT_BACKEND = "kokoro"
 DEFAULT_VOICE = "af_heart"
 DEFAULT_LANG_CODE = "a"
+DEFAULT_MAX_CHARS = 1200
+QWEN_MAX_CHARS = 2000
 DEFAULT_MIN_CHUNK_CHARS = 140
 QWEN_MIN_CHUNK_CHARS = 600
 ProgressCallback = Callable[[dict[str, Any]], None]
@@ -25,7 +27,7 @@ class GenerationOptions:
     speed: float = 1.0
     lang_code: str = DEFAULT_LANG_CODE
     repo_id: str = DEFAULT_REPO_ID
-    max_chars: int = 1200
+    max_chars: int = DEFAULT_MAX_CHARS
     pause_ms: int = 300
     keep_chunks: bool = False
     wav_only: bool = False
@@ -38,6 +40,20 @@ def min_chunk_chars_for_backend(backend: str) -> int:
     from audio_generation import QWEN_CUSTOM_BACKEND_IDS
 
     return QWEN_MIN_CHUNK_CHARS if backend in QWEN_CUSTOM_BACKEND_IDS else DEFAULT_MIN_CHUNK_CHARS
+
+
+def max_chunk_chars_for_backend(backend: str, requested_max_chars: int) -> int:
+    from audio_generation import QWEN_CUSTOM_BACKEND_IDS
+
+    if backend in QWEN_CUSTOM_BACKEND_IDS and requested_max_chars == DEFAULT_MAX_CHARS:
+        return QWEN_MAX_CHARS
+    return requested_max_chars
+
+
+def pack_chunks_for_backend(backend: str) -> bool:
+    from audio_generation import QWEN_CUSTOM_BACKEND_IDS
+
+    return backend in QWEN_CUSTOM_BACKEND_IDS
 
 
 @dataclass(frozen=True)
@@ -135,8 +151,9 @@ def generate_audio_from_cleaned_text(
 
     chunks = make_chunks(
         cleaned,
-        max_chars=options.max_chars,
+        max_chars=max_chunk_chars_for_backend(options.backend, options.max_chars),
         min_chunk_chars=min_chunk_chars_for_backend(options.backend),
+        pack_to_max=pack_chunks_for_backend(options.backend),
     )
     if not chunks:
         raise ValueError("No chunks were created from the input text.")

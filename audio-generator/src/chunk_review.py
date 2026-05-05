@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from generation import DEFAULT_BACKEND, min_chunk_chars_for_backend
+from generation import DEFAULT_BACKEND, max_chunk_chars_for_backend, min_chunk_chars_for_backend, pack_chunks_for_backend
 from paths import resolve_cli_input_path
 from text_processing import make_chunks, prepare_text_for_tts
 
@@ -18,23 +18,30 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def preview_chunks(input_path: Path, max_chars: int, min_chars: int) -> tuple[str, list[str]]:
+def preview_chunks(input_path: Path, max_chars: int, min_chars: int, pack_to_max: bool = False) -> tuple[str, list[str]]:
     raw = input_path.read_text(encoding="utf-8").lstrip("\ufeff")
     cleaned = prepare_text_for_tts(raw, input_path.suffix)
-    return cleaned, make_chunks(cleaned, max_chars=max_chars, min_chunk_chars=min_chars) if cleaned else []
+    return (
+        cleaned,
+        make_chunks(cleaned, max_chars=max_chars, min_chunk_chars=min_chars, pack_to_max=pack_to_max)
+        if cleaned
+        else [],
+    )
 
 
 def main() -> None:
     args = parse_args()
     input_path = resolve_cli_input_path(args.input)
     min_chars = args.min_chars if args.min_chars is not None else min_chunk_chars_for_backend(args.backend)
-    cleaned, chunks = preview_chunks(input_path, max_chars=args.max_chars, min_chars=min_chars)
+    max_chars = max_chunk_chars_for_backend(args.backend, args.max_chars)
+    pack_to_max = pack_chunks_for_backend(args.backend)
+    cleaned, chunks = preview_chunks(input_path, max_chars=max_chars, min_chars=min_chars, pack_to_max=pack_to_max)
 
     print(f"Input: {input_path}")
     print(f"Characters after cleaning: {len(cleaned):,}")
     print(f"Chunks: {len(chunks)}")
     print(f"Backend: {args.backend}")
-    print(f"Chunk settings: min_chars={min_chars}, max_chars={args.max_chars}")
+    print(f"Chunk settings: min_chars={min_chars}, max_chars={max_chars}, pack_to_max={pack_to_max}")
 
     for index, chunk in enumerate(chunks, start=1):
         words = chunk.split()
