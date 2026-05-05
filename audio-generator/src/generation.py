@@ -12,6 +12,8 @@ DEFAULT_REPO_ID = "hexgrad/Kokoro-82M"
 DEFAULT_BACKEND = "kokoro"
 DEFAULT_VOICE = "af_heart"
 DEFAULT_LANG_CODE = "a"
+DEFAULT_MIN_CHUNK_CHARS = 140
+QWEN_MIN_CHUNK_CHARS = 600
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
@@ -30,6 +32,12 @@ class GenerationOptions:
     ffmpeg_path: str | None = None
     mp3_bitrate: str = "96k"
     instruct: str | None = None
+
+
+def min_chunk_chars_for_backend(backend: str) -> int:
+    from audio_generation import QWEN_CUSTOM_BACKEND_IDS
+
+    return QWEN_MIN_CHUNK_CHARS if backend in QWEN_CUSTOM_BACKEND_IDS else DEFAULT_MIN_CHUNK_CHARS
 
 
 @dataclass(frozen=True)
@@ -125,7 +133,11 @@ def generate_audio_from_cleaned_text(
     if not cleaned:
         raise ValueError("The input text is empty after cleaning.")
 
-    chunks = make_chunks(cleaned, max_chars=options.max_chars)
+    chunks = make_chunks(
+        cleaned,
+        max_chars=options.max_chars,
+        min_chunk_chars=min_chunk_chars_for_backend(options.backend),
+    )
     if not chunks:
         raise ValueError("No chunks were created from the input text.")
 

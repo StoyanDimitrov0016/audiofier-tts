@@ -27,7 +27,7 @@ from audio_server import (
 )
 from chunk_review import preview_chunks
 from cli import build_output_dir
-from generation import GenerationOptions, GenerationResult, sanitize_stem
+from generation import GenerationOptions, GenerationResult, min_chunk_chars_for_backend, sanitize_stem
 from local_runtime import DEFAULT_HF_HOME, DEFAULT_TORCH_HOME, LOCAL_SOX_DIR, LOCAL_TOOLS_DIR, configure_local_runtime
 from paths import resolve_cli_input_path, resolve_output_dir
 from text_processing import make_chunks, merge_small_chunks, prepare_text_for_tts, strip_markdown
@@ -100,6 +100,10 @@ class ChunkingTests(unittest.TestCase):
         self.assertIn("Title.", cleaned)
         self.assertEqual(len(chunks), 1)
         self.assertIn("Another short paragraph.", chunks[0])
+
+    def test_qwen_uses_larger_minimum_chunks(self) -> None:
+        self.assertEqual(min_chunk_chars_for_backend("kokoro"), 140)
+        self.assertEqual(min_chunk_chars_for_backend("qwen-1.7b-custom"), 600)
 
 
 class OutputLayoutTests(unittest.TestCase):
@@ -404,9 +408,17 @@ class GenerationBackendTests(unittest.TestCase):
 
         with patch("audio_generation.synthesize_qwen_custom_chunks", return_value=(expected, 24000)) as synthesize:
             with patch("audio_generation.save_final_wav", return_value=(output_dir / "sample" / "sample.wav", 1.0)):
-                result = generate_audio_from_cleaned_text("Hello from Qwen.", "sample", options)
+                text = " ".join(
+                    [
+                        "This is a short Qwen paragraph.",
+                        "Another short paragraph follows.",
+                        "A third short paragraph should be merged.",
+                    ]
+                )
+                result = generate_audio_from_cleaned_text(text, "sample", options)
 
         synthesize.assert_called_once()
+        self.assertEqual(synthesize.call_args.kwargs["chunks"][0], text)
         self.assertEqual(synthesize.call_args.kwargs["speaker"], "Aiden")
         self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-0.6b-custom")
         self.assertIsNone(synthesize.call_args.kwargs["instruct"])

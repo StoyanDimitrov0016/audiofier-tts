@@ -40,17 +40,20 @@ const QWEN_STYLE_OPTIONS = [
   {
     id: "neutral",
     label: "Neutral narration",
-    instruct: "Read in a calm, neutral audiobook narration style. Keep emotion restrained and avoid dramatic emphasis.",
+    instruct:
+      "Read in a calm, neutral audiobook narration style. Start gently in the same voice you will use throughout. Keep emotion restrained, avoid dramatic emphasis, and keep intonation steady between paragraphs.",
   },
   {
     id: "plain",
     label: "Plain lecture",
-    instruct: "Read clearly and evenly like a lecture recording. Use minimal emotion and steady pacing.",
+    instruct:
+      "Read clearly and evenly like a lecture recording. Start plainly, use minimal emotion, keep steady pacing, and avoid expressive rises at the beginning of each section.",
   },
   {
     id: "warm",
     label: "Warm audiobook",
-    instruct: "Read with a warm audiobook tone. Keep the delivery gentle and natural without becoming theatrical.",
+    instruct:
+      "Read with a warm audiobook tone. Start gently in a natural voice, keep the delivery intimate and restrained, and do not become theatrical or overly emotional.",
   },
 ] as const;
 
