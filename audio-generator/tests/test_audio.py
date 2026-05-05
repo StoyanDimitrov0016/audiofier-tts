@@ -15,6 +15,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 import local_runtime
+from abc_generate import default_cases, read_cleaned_text
 from audio_generation import resolve_ffmpeg, resolve_qwen_custom_model_source, synthesize_chunks
 from audio_server import (
     JOB_STORE,
@@ -104,6 +105,24 @@ class ChunkingTests(unittest.TestCase):
     def test_qwen_uses_larger_minimum_chunks(self) -> None:
         self.assertEqual(min_chunk_chars_for_backend("kokoro"), 140)
         self.assertEqual(min_chunk_chars_for_backend("qwen-1.7b-custom"), 600)
+
+
+class AbcGenerationTests(unittest.TestCase):
+    def test_default_cases_include_kokoro_and_qwen_style_permutations(self) -> None:
+        cases = default_cases(["neutral", "plain", "warm"])
+        case_ids = {case.id for case in cases}
+
+        self.assertIn("kokoro-af-heart", case_ids)
+        self.assertIn("qwen-0.6b-custom-aiden-neutral", case_ids)
+        self.assertIn("qwen-0.6b-custom-ryan-plain", case_ids)
+        self.assertIn("qwen-1.7b-custom-ryan-warm", case_ids)
+        self.assertEqual(len(cases), 15)
+
+    def test_read_cleaned_text_uses_builtin_excerpt_by_default(self) -> None:
+        cleaned, source = read_cleaned_text(None)
+
+        self.assertIn("Mara kept one lantern", cleaned)
+        self.assertEqual(source, "built-in abc excerpt")
 
 
 class OutputLayoutTests(unittest.TestCase):
