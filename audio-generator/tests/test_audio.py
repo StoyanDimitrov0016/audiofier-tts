@@ -14,6 +14,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+import local_runtime
 from audio_generation import resolve_ffmpeg, synthesize_chunks
 from audio_server import (
     JOB_STORE,
@@ -26,6 +27,7 @@ from audio_server import (
 )
 from cli import build_output_dir
 from generation import GenerationOptions, GenerationResult, sanitize_stem
+from local_runtime import DEFAULT_HF_HOME, DEFAULT_TORCH_HOME, LOCAL_SOX_DIR, LOCAL_TOOLS_DIR, configure_local_runtime
 from paths import resolve_cli_input_path, resolve_output_dir
 from text_processing import make_chunks, merge_small_chunks, prepare_text_for_tts, strip_markdown
 
@@ -256,12 +258,47 @@ class FfmpegResolutionTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             resolve_ffmpeg("C:/definitely-missing/ffmpeg.exe")
 
+    def test_resolve_ffmpeg_uses_env_path(self) -> None:
+        expected = (ROOT.parent / ".local-tts-ai" / "tools" / "ffmpeg.exe").resolve()
+        with patch.dict("audio_generation.os.environ", {"FFMPEG_PATH": ".local-tts-ai/tools/ffmpeg.exe"}):
+            with patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected):
+                resolved = resolve_ffmpeg(None)
+        self.assertEqual(resolved, str(expected))
+
+    def test_resolve_ffmpeg_uses_project_local_default(self) -> None:
+        expected = ROOT.parent / ".local-tts-ai" / "tools" / "ffmpeg.exe"
+        with patch.dict("audio_generation.os.environ", {"FFMPEG_PATH": ""}):
+            with patch("audio_generation.shutil.which", return_value=None):
+                with patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected):
+                    resolved = resolve_ffmpeg(None)
+        self.assertEqual(resolved, str(expected))
+
     def test_resolve_ffmpeg_uses_common_downloads_location(self) -> None:
         expected = str(Path.home() / "Downloads" / "ffmpeg" / "bin" / "ffmpeg.exe")
-        with patch("audio_generation.shutil.which", return_value=None):
-            with patch.object(Path, "exists", autospec=True, side_effect=lambda path: str(path) == expected):
-                resolved = resolve_ffmpeg(None)
+        with patch.dict("audio_generation.os.environ", {"FFMPEG_PATH": ""}):
+            with patch("audio_generation.shutil.which", return_value=None):
+                with patch.object(Path, "exists", autospec=True, side_effect=lambda path: str(path) == expected):
+                    resolved = resolve_ffmpeg(None)
         self.assertEqual(resolved, expected)
+
+
+class LocalRuntimeTests(unittest.TestCase):
+    def test_configure_local_runtime_sets_project_cache_dirs(self) -> None:
+        with patch.dict("local_runtime.os.environ", {}, clear=True):
+            with patch.object(Path, "mkdir", autospec=True) as mkdir:
+                configure_local_runtime()
+
+            self.assertEqual(local_runtime.os.environ["HF_HOME"], str(DEFAULT_HF_HOME))
+            self.assertEqual(local_runtime.os.environ["TORCH_HOME"], str(DEFAULT_TORCH_HOME))
+            self.assertEqual(mkdir.call_count, 2)
+
+    def test_configure_local_runtime_prepends_local_tool_dirs(self) -> None:
+        with patch.dict("local_runtime.os.environ", {"PATH": "C:/Windows/System32"}, clear=True):
+            with patch.object(Path, "mkdir", autospec=True):
+                configure_local_runtime()
+
+            entries = local_runtime.os.environ["PATH"].split(os.pathsep)
+            self.assertEqual(entries[:2], [str(LOCAL_SOX_DIR), str(LOCAL_TOOLS_DIR)])
 
 
 class SynthesisTests(unittest.TestCase):

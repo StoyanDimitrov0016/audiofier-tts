@@ -9,6 +9,10 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from local_runtime import configure_local_runtime
+
+configure_local_runtime()
+
 from cli import main
 
 if __name__ == "__main__":

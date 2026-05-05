@@ -86,6 +86,8 @@ npm run dev
 - FFmpeg for MP3 output
 - SoX for Qwen TTS development
 
+Kokoro English generation uses the spaCy `en_core_web_sm` model through `misaki`; `audio-generator/requirements.txt` installs it explicitly so generation does not try to download it at runtime.
+
 The Python virtual environment is created at:
 
 ```text
@@ -126,6 +128,8 @@ Runtime model files and AI caches belong in the project-local ignored folder:
   models/kokoro-82m/
   models/qwen3-tts-0-6b-custom/
   models/qwen3-tts-tokenizer-12hz/
+  tools/ffmpeg.exe
+  tools/sox/sox.exe
   cache/huggingface/
   cache/torch/
 ```
@@ -152,11 +156,28 @@ The audio generator defaults caches into `.local-tts-ai/cache`. You can override
 $env:KOKORO_MODEL_PATH = ".local-tts-ai\models\kokoro-82m"
 $env:QWEN_TTS_MODEL_PATH = ".local-tts-ai\models\qwen3-tts-0-6b-custom"
 $env:QWEN_TTS_TOKENIZER_PATH = ".local-tts-ai\models\qwen3-tts-tokenizer-12hz"
+$env:FFMPEG_PATH = ".local-tts-ai\tools\ffmpeg.exe"
 $env:HF_HOME = ".local-tts-ai\cache\huggingface"
 $env:TORCH_HOME = ".local-tts-ai\cache\torch"
 ```
 
 Kokoro remains the default TTS backend. Qwen is used only when the request selects backend `qwen-0.6b-custom` with supported speakers `Ryan` or `Aiden`.
+
+For MP3 output, install FFmpeg and either add it to PATH or keep it project-local at:
+
+```text
+.local-tts-ai/tools/ffmpeg.exe
+```
+
+Qwen TTS also expects SoX to be available as a command-line tool. Keep it project-local at:
+
+```text
+.local-tts-ai/tools/sox/sox.exe
+```
+
+The audio generator prepends `.local-tts-ai/tools` and `.local-tts-ai/tools/sox` to `PATH` at startup. If your local FFmpeg is somewhere else, set `FFMPEG_PATH` to the executable path before starting the audio generator.
+
+`flash-attn` is an optional Qwen acceleration dependency. Install it only when a prebuilt wheel matches the active Python, PyTorch, CUDA, and Windows platform versions. A source build needs the CUDA toolkit and compiler setup; it is intentionally not required for normal setup.
 
 ## Storage Model
 

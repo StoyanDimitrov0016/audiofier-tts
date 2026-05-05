@@ -7,17 +7,19 @@ import sys
 import threading
 import warnings
 from collections.abc import Callable, Iterable
+from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import soundfile as sf
 
+from local_runtime import LOCAL_TTS_AI_DIR, PROJECT_ROOT, configure_local_runtime
+
 SAMPLE_RATE = 24000
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-LOCAL_TTS_AI_DIR = PROJECT_ROOT / ".local-tts-ai"
-DEFAULT_HF_HOME = LOCAL_TTS_AI_DIR / "cache" / "huggingface"
-DEFAULT_TORCH_HOME = LOCAL_TTS_AI_DIR / "cache" / "torch"
+FFMPEG_EXECUTABLE_NAME = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+DEFAULT_FFMPEG_PATH = LOCAL_TTS_AI_DIR / "tools" / FFMPEG_EXECUTABLE_NAME
 KOKORO_MODEL_ID = "hexgrad/Kokoro-82M"
 DEFAULT_KOKORO_MODEL_PATH = LOCAL_TTS_AI_DIR / "models" / "kokoro-82m"
 QWEN_CUSTOM_BACKEND_ID = "qwen-0.6b-custom"
@@ -31,8 +33,7 @@ ProgressCallback = Callable[[dict[str, Any]], None]
 _QWEN_MODEL: Any | None = None
 _QWEN_MODEL_LOCK = threading.Lock()
 
-os.environ.setdefault("HF_HOME", str(DEFAULT_HF_HOME))
-os.environ.setdefault("TORCH_HOME", str(DEFAULT_TORCH_HOME))
+configure_local_runtime()
 
 
 def resolve_project_path(value: str | Path) -> Path:
@@ -49,6 +50,23 @@ def resolve_kokoro_model_source(repo_id: str) -> str:
     if repo_id == KOKORO_MODEL_ID and DEFAULT_KOKORO_MODEL_PATH.exists():
         return str(DEFAULT_KOKORO_MODEL_PATH)
     return repo_id
+
+
+def resolve_kokoro_model_path(repo_id: str) -> Path | None:
+    source = resolve_kokoro_model_source(repo_id)
+    path = Path(source)
+    if path.exists() and path.is_dir():
+        return path
+    return None
+
+
+def resolve_kokoro_voice(voice: str, model_path: Path | None) -> str:
+    if model_path is None:
+        return voice
+    voice_path = model_path / "voices" / f"{voice}.pt"
+    if voice_path.exists():
+        return str(voice_path)
+    return voice
 
 
 def resolve_qwen_custom_model_source() -> str:
@@ -111,7 +129,22 @@ def synthesize_chunks(
     patch_phonemizer_cleanup_bug()
     from kokoro import KPipeline
 
-    pipeline = KPipeline(repo_id=resolve_kokoro_model_source(repo_id), lang_code=lang_code)
+    model_path = resolve_kokoro_model_path(repo_id)
+    if model_path is not None:
+        import torch
+        from kokoro import KModel
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = KModel(
+            repo_id=KOKORO_MODEL_ID,
+            config=str(model_path / "config.json"),
+            model=str(model_path / "kokoro-v1_0.pth"),
+        ).to(device).eval()
+        pipeline = KPipeline(repo_id=KOKORO_MODEL_ID, lang_code=lang_code, model=model)
+    else:
+        pipeline = KPipeline(repo_id=repo_id, lang_code=lang_code)
+
+    resolved_voice = resolve_kokoro_voice(voice, model_path)
     chunk_list = list(chunks)
     wavs: list[np.ndarray] = []
 
@@ -127,7 +160,7 @@ def synthesize_chunks(
                 }
             )
 
-        generator = pipeline(chunk, voice=voice, speed=speed, split_pattern=r"\n{2,}")
+        generator = pipeline(chunk, voice=resolved_voice, speed=speed, split_pattern=r"\n{2,}")
 
         chunk_wavs: list[np.ndarray] = []
         for _, _, audio in generator:
@@ -153,15 +186,21 @@ def synthesize_chunks(
 def get_qwen_custom_model() -> Any:
     global _QWEN_MODEL
 
-    if _QWEN_MODEL is not None:
-        return _QWEN_MODEL
-
     with _QWEN_MODEL_LOCK:
         if _QWEN_MODEL is not None:
             return _QWEN_MODEL
 
         import torch
-        from qwen_tts import Qwen3TTSModel
+
+        try:
+            qwen_tts = import_module("qwen_tts")
+        except ModuleNotFoundError as error:
+            raise RuntimeError(
+                "qwen-tts is not installed in the active Python environment. "
+                "Install audio-generator requirements and run the API with audio-generator/.venv."
+            ) from error
+
+        qwen_model_class = qwen_tts.Qwen3TTSModel
 
         kwargs: dict[str, Any]
         if torch.cuda.is_available():
@@ -169,6 +208,8 @@ def get_qwen_custom_model() -> Any:
                 "device_map": "cuda:0",
                 "dtype": torch.bfloat16,
             }
+            if find_spec("flash_attn") is not None:
+                kwargs["attn_implementation"] = "flash_attention_2"
             print(f"Loading Qwen CustomVoice on CUDA: {torch.cuda.get_device_name(0)}")
         else:
             kwargs = {}
@@ -179,7 +220,7 @@ def get_qwen_custom_model() -> Any:
 
         model_source = resolve_qwen_custom_model_source()
         print(f"Qwen model source: {model_source}")
-        _QWEN_MODEL = Qwen3TTSModel.from_pretrained(model_source, **kwargs)
+        _QWEN_MODEL = qwen_model_class.from_pretrained(model_source, **kwargs)
         return _QWEN_MODEL
 
 
@@ -272,10 +313,20 @@ def save_final_wav(
 
 def resolve_ffmpeg(ffmpeg_path: str | None) -> str:
     if ffmpeg_path:
-        candidate = Path(ffmpeg_path)
+        candidate = resolve_project_path(ffmpeg_path)
         if not candidate.exists():
             raise FileNotFoundError(f"FFmpeg not found: {candidate}")
         return str(candidate)
+
+    configured = os.environ.get("FFMPEG_PATH")
+    if configured:
+        candidate = resolve_project_path(configured)
+        if not candidate.exists():
+            raise FileNotFoundError(f"FFmpeg not found from FFMPEG_PATH: {candidate}")
+        return str(candidate)
+
+    if DEFAULT_FFMPEG_PATH.exists():
+        return str(DEFAULT_FFMPEG_PATH)
 
     detected = shutil.which("ffmpeg")
     if detected:
@@ -299,7 +350,8 @@ def resolve_ffmpeg(ffmpeg_path: str | None) -> str:
                 return str(candidate)
 
     raise FileNotFoundError(
-        "FFmpeg was not found. Install it, add it to PATH, or pass --ffmpeg-path with the full path to ffmpeg.exe."
+        "FFmpeg was not found. Install it, add it to PATH, set FFMPEG_PATH, "
+        "place it at .local-tts-ai/tools/ffmpeg.exe, or pass --ffmpeg-path."
     )
 
 

@@ -30,6 +30,12 @@ import {
   startChapterAudioGeneration,
 } from "../server/lessons";
 
+const DEFAULT_AUDIO_BACKEND = "kokoro";
+const BACKEND_LABELS: Record<string, string> = {
+  kokoro: "Kokoro",
+  "qwen-0.6b-custom": "Qwen 0.6B CustomVoice",
+};
+
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
   loader: async ({ params }) => {
     const [groupDetails, chapter, voices] = await Promise.all([
@@ -51,7 +57,9 @@ export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
 function LessonIndexPage() {
   const { group, chapter, voices } = Route.useLoaderData();
   const router = useRouter();
-  const [voice, setVoice] = useState(voices.defaultVoice);
+  const defaultVoice = voices.voices.find((availableVoice: AudioVoice) => availableVoice.id === voices.defaultVoice);
+  const [backend, setBackend] = useState(defaultVoice?.backend ?? DEFAULT_AUDIO_BACKEND);
+  const [voice, setVoice] = useState(defaultVoice?.id ?? voices.defaultVoice);
   const [speed, setSpeed] = useState(1);
   const [wavOnly, setWavOnly] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -68,9 +76,19 @@ function LessonIndexPage() {
         ? 8
         : 0;
 
-  const selectedVoice =
-    voices.voices.find((availableVoice: AudioVoice) => availableVoice.id === voice) ?? voices.voices[0];
-  const voicesByLanguage = voices.voices.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
+  const backendOptions = Array.from(
+    new Map(
+      voices.voices.map((availableVoice: AudioVoice) => {
+        const voiceBackend = availableVoice.backend ?? DEFAULT_AUDIO_BACKEND;
+        return [voiceBackend, BACKEND_LABELS[voiceBackend] ?? voiceBackend] as const;
+      })
+    )
+  );
+  const voicesForBackend = voices.voices.filter(
+    (availableVoice: AudioVoice) => (availableVoice.backend ?? DEFAULT_AUDIO_BACKEND) === backend
+  );
+  const selectedVoice = voicesForBackend.find((availableVoice: AudioVoice) => availableVoice.id === voice);
+  const voicesByLanguage = voicesForBackend.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
     groups[availableVoice.language] ??= [];
     groups[availableVoice.language].push(availableVoice);
     return groups;
@@ -96,7 +114,7 @@ function LessonIndexPage() {
         data: {
           groupId: group.id,
           chapterId: chapter.id,
-          backend: selectedVoice?.backend,
+          backend,
           voice,
           langCode: selectedVoice?.lang_code,
           speed,
@@ -227,11 +245,53 @@ function LessonIndexPage() {
               ) : null}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-[minmax(80px,0.75fr)_minmax(0,180px)_auto] sm:items-center">
-              <div className="order-2 flex items-center gap-2">
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label
+                  htmlFor="backend"
+                  className="text-xs uppercase tracking-wider"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                >
+                  Model
+                </Label>
+                <Select
+                  value={backend}
+                  onValueChange={(nextBackend) => {
+                    if (!nextBackend) {
+                      return;
+                    }
+
+                    setBackend(nextBackend);
+                    const nextVoice = voices.voices.find(
+                      (availableVoice: AudioVoice) =>
+                        (availableVoice.backend ?? DEFAULT_AUDIO_BACKEND) === nextBackend
+                    );
+                    if (nextVoice) {
+                      setVoice(nextVoice.id);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    id="backend"
+                    className="w-full"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {backendOptions.map(([backendId, label]) => (
+                      <SelectItem key={backendId} value={backendId}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
                 <Label
                   htmlFor="voice"
-                  className="sr-only"
+                  className="text-xs uppercase tracking-wider"
                   style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
                 >
                   Voice
@@ -267,7 +327,7 @@ function LessonIndexPage() {
                 </Select>
                 {selectedVoice ? (
                   <p
-                    className="hidden text-xs"
+                    className="text-xs"
                     style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
                   >
                     {selectedVoice.language} · {selectedVoice.gender}
@@ -275,7 +335,7 @@ function LessonIndexPage() {
                 ) : null}
               </div>
 
-              <div className="order-1 flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <div className="order-2 flex shrink-0 items-center gap-2">
                   <Label
                     htmlFor="speed"
@@ -312,7 +372,7 @@ function LessonIndexPage() {
                 </div>
               </div>
 
-              <Label className="order-3 flex cursor-pointer select-none items-center gap-2">
+              <Label className="flex cursor-pointer select-none items-center gap-2">
                 <Checkbox checked={wavOnly} onCheckedChange={(checked) => setWavOnly(Boolean(checked))} />
                 <span className="whitespace-nowrap text-sm" style={{ color: "var(--muted-foreground)" }}>
                   WAV-only

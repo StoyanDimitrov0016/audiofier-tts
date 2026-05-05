@@ -7,7 +7,7 @@
 
 # -------------------------------------------------------------------
 # Python environments
-# Ignore local virtual environments, including .venv, .venv-qwen, etc.
+# Ignore local virtual environments.
 # -------------------------------------------------------------------
 .venv*/
 venv/
