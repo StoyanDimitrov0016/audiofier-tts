@@ -25,6 +25,7 @@ from audio_server import (
     options_from_payload,
     parse_generation_request,
 )
+from chunk_review import preview_chunks
 from cli import build_output_dir
 from generation import GenerationOptions, GenerationResult, sanitize_stem
 from local_runtime import DEFAULT_HF_HOME, DEFAULT_TORCH_HOME, LOCAL_SOX_DIR, LOCAL_TOOLS_DIR, configure_local_runtime
@@ -88,6 +89,17 @@ class ChunkingTests(unittest.TestCase):
         self.assertEqual(len(merged), 2)
         self.assertIn("4.1 System Interface", merged[0])
         self.assertIn("Dynamo stores objects associated with a key", merged[0])
+
+    def test_preview_chunks_returns_cleaned_text_and_chunks(self) -> None:
+        input_path = ROOT / ".test-tmp" / "chunk-review.md"
+        input_path.parent.mkdir(parents=True, exist_ok=True)
+        input_path.write_text("# Title\n\nA short paragraph.\n\nAnother short paragraph.", encoding="utf-8")
+
+        cleaned, chunks = preview_chunks(input_path, max_chars=1200, min_chars=80)
+
+        self.assertIn("Title.", cleaned)
+        self.assertEqual(len(chunks), 1)
+        self.assertIn("Another short paragraph.", chunks[0])
 
 
 class OutputLayoutTests(unittest.TestCase):
