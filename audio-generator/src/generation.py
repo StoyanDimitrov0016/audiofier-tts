@@ -9,24 +9,51 @@ from typing import Any
 from text_processing import make_chunks, prepare_text_for_tts
 
 DEFAULT_REPO_ID = "hexgrad/Kokoro-82M"
+DEFAULT_BACKEND = "kokoro"
 DEFAULT_VOICE = "af_heart"
 DEFAULT_LANG_CODE = "a"
+DEFAULT_MAX_CHARS = 1200
+QWEN_MAX_CHARS = 2000
+DEFAULT_MIN_CHUNK_CHARS = 140
+QWEN_MIN_CHUNK_CHARS = 600
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 @dataclass(frozen=True)
 class GenerationOptions:
     output_dir: Path = Path("output")
+    backend: str = DEFAULT_BACKEND
     voice: str = DEFAULT_VOICE
     speed: float = 1.0
     lang_code: str = DEFAULT_LANG_CODE
     repo_id: str = DEFAULT_REPO_ID
-    max_chars: int = 1200
+    max_chars: int = DEFAULT_MAX_CHARS
     pause_ms: int = 300
     keep_chunks: bool = False
     wav_only: bool = False
     ffmpeg_path: str | None = None
     mp3_bitrate: str = "96k"
+    instruct: str | None = None
+
+
+def min_chunk_chars_for_backend(backend: str) -> int:
+    from audio_generation import QWEN_CUSTOM_BACKEND_IDS
+
+    return QWEN_MIN_CHUNK_CHARS if backend in QWEN_CUSTOM_BACKEND_IDS else DEFAULT_MIN_CHUNK_CHARS
+
+
+def max_chunk_chars_for_backend(backend: str, requested_max_chars: int) -> int:
+    from audio_generation import QWEN_CUSTOM_BACKEND_IDS
+
+    if backend in QWEN_CUSTOM_BACKEND_IDS and requested_max_chars == DEFAULT_MAX_CHARS:
+        return QWEN_MAX_CHARS
+    return requested_max_chars
+
+
+def pack_chunks_for_backend(backend: str) -> bool:
+    from audio_generation import QWEN_CUSTOM_BACKEND_IDS
+
+    return backend in QWEN_CUSTOM_BACKEND_IDS
 
 
 @dataclass(frozen=True)
@@ -37,6 +64,10 @@ class GenerationResult:
     chunk_count: int
     cleaned_character_count: int
     duration_seconds: float
+    backend: str
+    voice: str
+    model_source: str | None = None
+    instruct: str | None = None
 
     @property
     def formatted_duration(self) -> str:
@@ -68,6 +99,13 @@ def validate_text_suffix(suffix: str) -> str:
 
 
 def validate_generation_options(options: GenerationOptions) -> None:
+    from audio_generation import QWEN_CUSTOM_BACKEND_IDS, QWEN_CUSTOM_SPEAKERS
+
+    if options.backend not in {DEFAULT_BACKEND, *QWEN_CUSTOM_BACKEND_IDS}:
+        raise ValueError(f"Unsupported TTS backend: {options.backend}.")
+    if options.backend in QWEN_CUSTOM_BACKEND_IDS and options.voice not in QWEN_CUSTOM_SPEAKERS:
+        supported = ", ".join(sorted(QWEN_CUSTOM_SPEAKERS))
+        raise ValueError(f"Unsupported Qwen speaker: {options.voice}. Supported speakers: {supported}.")
     if options.speed <= 0:
         raise ValueError("speed must be greater than 0.")
     if options.max_chars < 200:
@@ -93,12 +131,16 @@ def generate_audio_from_cleaned_text(
     progress_callback: ProgressCallback | None = None,
 ) -> GenerationResult:
     from audio_generation import (
+        QWEN_CUSTOM_BACKEND_IDS,
         convert_wav_to_mp3,
         resolve_ffmpeg,
+        resolve_kokoro_model_source,
+        resolve_qwen_custom_model_source,
         save_chunk_wavs,
         save_final_wav,
         suppress_known_runtime_noise,
         synthesize_chunks,
+        synthesize_qwen_custom_chunks,
     )
 
     suppress_known_runtime_noise()
@@ -107,7 +149,12 @@ def generate_audio_from_cleaned_text(
     if not cleaned:
         raise ValueError("The input text is empty after cleaning.")
 
-    chunks = make_chunks(cleaned, max_chars=options.max_chars)
+    chunks = make_chunks(
+        cleaned,
+        max_chars=max_chunk_chars_for_backend(options.backend, options.max_chars),
+        min_chunk_chars=min_chunk_chars_for_backend(options.backend),
+        pack_to_max=pack_chunks_for_backend(options.backend),
+    )
     if not chunks:
         raise ValueError("No chunks were created from the input text.")
 
@@ -124,14 +171,27 @@ def generate_audio_from_cleaned_text(
     output_stem = sanitize_stem(stem)
     lesson_output_dir = options.output_dir / output_stem
 
-    wavs = synthesize_chunks(
-        chunks=chunks,
-        voice=options.voice,
-        speed=options.speed,
-        repo_id=options.repo_id,
-        lang_code=options.lang_code,
-        progress_callback=progress_callback,
-    )
+    sample_rate = 24000
+    model_source: str | None
+    if options.backend in QWEN_CUSTOM_BACKEND_IDS:
+        model_source = resolve_qwen_custom_model_source(options.backend)
+        wavs, sample_rate = synthesize_qwen_custom_chunks(
+            chunks=chunks,
+            speaker=options.voice,
+            backend=options.backend,
+            instruct=options.instruct,
+            progress_callback=progress_callback,
+        )
+    else:
+        model_source = resolve_kokoro_model_source(options.repo_id)
+        wavs = synthesize_chunks(
+            chunks=chunks,
+            voice=options.voice,
+            speed=options.speed,
+            repo_id=options.repo_id,
+            lang_code=options.lang_code,
+            progress_callback=progress_callback,
+        )
 
     if progress_callback is not None:
         progress_callback(
@@ -144,13 +204,14 @@ def generate_audio_from_cleaned_text(
         )
 
     if options.keep_chunks:
-        save_chunk_wavs(wavs, lesson_output_dir / "chunks", output_stem)
+        save_chunk_wavs(wavs, lesson_output_dir / "chunks", output_stem, sample_rate=sample_rate)
 
     final_wav, duration_seconds = save_final_wav(
         wavs=wavs,
         output_dir=lesson_output_dir,
         stem=output_stem,
         pause_ms=options.pause_ms,
+        sample_rate=sample_rate,
     )
 
     final_mp3: Path | None = None
@@ -181,6 +242,10 @@ def generate_audio_from_cleaned_text(
         chunk_count=len(chunks),
         cleaned_character_count=len(cleaned),
         duration_seconds=duration_seconds,
+        backend=options.backend,
+        voice=options.voice,
+        model_source=model_source,
+        instruct=options.instruct if options.backend in QWEN_CUSTOM_BACKEND_IDS else None,
     )
 
 

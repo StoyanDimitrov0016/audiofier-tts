@@ -14,7 +14,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from audio_generation import resolve_ffmpeg, synthesize_chunks
+import local_runtime
+from abc_generate import default_cases, quick_cases, read_cleaned_text
+from audio_generation import resolve_ffmpeg, resolve_qwen_custom_model_source, synthesize_chunks
 from audio_server import (
     JOB_STORE,
     ApiError,
@@ -24,10 +26,19 @@ from audio_server import (
     options_from_payload,
     parse_generation_request,
 )
+from chunk_review import preview_chunks
 from cli import build_output_dir
-from generation import GenerationResult, sanitize_stem
+from generation import (
+    GenerationOptions,
+    GenerationResult,
+    max_chunk_chars_for_backend,
+    min_chunk_chars_for_backend,
+    pack_chunks_for_backend,
+    sanitize_stem,
+)
+from local_runtime import DEFAULT_HF_HOME, DEFAULT_TORCH_HOME, LOCAL_SOX_DIR, LOCAL_TOOLS_DIR, configure_local_runtime
 from paths import resolve_cli_input_path, resolve_output_dir
-from text_processing import make_chunks, merge_small_chunks, prepare_text_for_tts, strip_markdown
+from text_processing import make_chunks, merge_small_chunks, pack_chunks, prepare_text_for_tts, strip_markdown
 
 
 class MarkdownCleaningTests(unittest.TestCase):
@@ -86,6 +97,66 @@ class ChunkingTests(unittest.TestCase):
         self.assertEqual(len(merged), 2)
         self.assertIn("4.1 System Interface", merged[0])
         self.assertIn("Dynamo stores objects associated with a key", merged[0])
+
+    def test_preview_chunks_returns_cleaned_text_and_chunks(self) -> None:
+        input_path = ROOT / ".test-tmp" / "chunk-review.md"
+        input_path.parent.mkdir(parents=True, exist_ok=True)
+        input_path.write_text("# Title\n\nA short paragraph.\n\nAnother short paragraph.", encoding="utf-8")
+
+        cleaned, chunks = preview_chunks(input_path, max_chars=1200, min_chars=80)
+
+        self.assertIn("Title.", cleaned)
+        self.assertEqual(len(chunks), 1)
+        self.assertIn("Another short paragraph.", chunks[0])
+
+    def test_qwen_uses_larger_minimum_chunks(self) -> None:
+        self.assertEqual(min_chunk_chars_for_backend("kokoro"), 140)
+        self.assertEqual(min_chunk_chars_for_backend("qwen-1.7b-custom"), 600)
+
+    def test_qwen_uses_larger_default_max_chunks(self) -> None:
+        self.assertEqual(max_chunk_chars_for_backend("kokoro", 1200), 1200)
+        self.assertEqual(max_chunk_chars_for_backend("qwen-1.7b-custom", 1200), 2000)
+        self.assertEqual(max_chunk_chars_for_backend("qwen-1.7b-custom", 900), 900)
+
+    def test_qwen_packs_chunks_to_max(self) -> None:
+        self.assertFalse(pack_chunks_for_backend("kokoro"))
+        self.assertTrue(pack_chunks_for_backend("qwen-1.7b-custom"))
+
+    def test_pack_chunks_combines_adjacent_chunks(self) -> None:
+        chunks = ["First paragraph.", "Second paragraph.", "Third paragraph."]
+
+        packed = pack_chunks(chunks, max_chars=80)
+
+        self.assertEqual(len(packed), 1)
+        self.assertIn("Second paragraph.", packed[0])
+
+
+class AbcGenerationTests(unittest.TestCase):
+    def test_default_cases_include_kokoro_and_qwen_style_permutations(self) -> None:
+        cases = default_cases(["neutral", "plain", "warm"])
+        case_ids = {case.id for case in cases}
+
+        self.assertIn("kokoro-af-heart", case_ids)
+        self.assertIn("qwen-0.6b-custom-aiden-neutral", case_ids)
+        self.assertIn("qwen-0.6b-custom-ryan-plain", case_ids)
+        self.assertIn("qwen-1.7b-custom-ryan-warm", case_ids)
+        self.assertEqual(len(cases), 15)
+
+    def test_read_cleaned_text_uses_builtin_excerpt_by_default(self) -> None:
+        cleaned, source = read_cleaned_text(None)
+
+        self.assertIn("Mara kept one lantern", cleaned)
+        self.assertNotIn('"', cleaned)
+        self.assertEqual(source, "built-in abc excerpt")
+
+    def test_quick_cases_use_one_voice_per_model(self) -> None:
+        cases = quick_cases("warm")
+
+        self.assertEqual([case.id for case in cases], [
+            "kokoro-af-heart",
+            "qwen-0.6b-custom-aiden-warm",
+            "qwen-1.7b-custom-aiden-warm",
+        ])
 
 
 class OutputLayoutTests(unittest.TestCase):
@@ -148,6 +219,66 @@ class ServerRequestTests(unittest.TestCase):
         self.assertEqual(request.suffix, ".md")
         self.assertTrue(request.options.wav_only)
 
+    def test_options_from_payload_defaults_qwen_voice_to_ryan(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        options = options_from_payload(
+            {
+                "backend": "qwen-0.6b-custom",
+                "wavOnly": True,
+            },
+            config,
+        )
+
+        self.assertEqual(options.backend, "qwen-0.6b-custom")
+        self.assertEqual(options.voice, "Ryan")
+
+    def test_options_from_payload_accepts_qwen_aiden(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        options = options_from_payload(
+            {
+                "backend": "qwen-0.6b-custom",
+                "voice": "Aiden",
+                "instruct": "Read evenly.",
+                "wavOnly": True,
+            },
+            config,
+        )
+
+        self.assertEqual(options.backend, "qwen-0.6b-custom")
+        self.assertEqual(options.voice, "Aiden")
+        self.assertEqual(options.instruct, "Read evenly.")
+
+    def test_options_from_payload_defaults_qwen_1_7b_voice_to_ryan(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+        options = options_from_payload(
+            {
+                "backend": "qwen-1.7b-custom",
+                "wavOnly": True,
+            },
+            config,
+        )
+
+        self.assertEqual(options.backend, "qwen-1.7b-custom")
+        self.assertEqual(options.voice, "Ryan")
+
+    def test_parse_generation_request_rejects_unknown_qwen_speaker(self) -> None:
+        output_dir = ROOT / "server-output"
+        config = ServerConfig(host="127.0.0.1", port=8765, output_dir=output_dir)
+
+        with self.assertRaisesRegex(ApiError, "Unsupported Qwen speaker"):
+            parse_generation_request(
+                {
+                    "text": "Hello",
+                    "backend": "qwen-0.6b-custom",
+                    "voice": "NotRyan",
+                    "wavOnly": True,
+                },
+                config,
+            )
+
     def test_generate_from_request_runs_text_generation(self) -> None:
         output_dir = ROOT / "server-output"
         expected = GenerationResult(
@@ -157,6 +288,9 @@ class ServerRequestTests(unittest.TestCase):
             chunk_count=1,
             cleaned_character_count=12,
             duration_seconds=1.5,
+            backend="kokoro",
+            voice="af_heart",
+            model_source="hexgrad/Kokoro-82M",
         )
 
         request = parse_generation_request(
@@ -212,12 +346,64 @@ class FfmpegResolutionTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             resolve_ffmpeg("C:/definitely-missing/ffmpeg.exe")
 
+    def test_resolve_ffmpeg_uses_env_path(self) -> None:
+        expected = (ROOT.parent / ".local-tts-ai" / "tools" / "ffmpeg.exe").resolve()
+        with patch.dict("audio_generation.os.environ", {"FFMPEG_PATH": ".local-tts-ai/tools/ffmpeg.exe"}):
+            with patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected):
+                resolved = resolve_ffmpeg(None)
+        self.assertEqual(resolved, str(expected))
+
+    def test_resolve_ffmpeg_uses_project_local_default(self) -> None:
+        expected = ROOT.parent / ".local-tts-ai" / "tools" / "ffmpeg.exe"
+        with patch.dict("audio_generation.os.environ", {"FFMPEG_PATH": ""}):
+            with patch("audio_generation.shutil.which", return_value=None):
+                with patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected):
+                    resolved = resolve_ffmpeg(None)
+        self.assertEqual(resolved, str(expected))
+
     def test_resolve_ffmpeg_uses_common_downloads_location(self) -> None:
         expected = str(Path.home() / "Downloads" / "ffmpeg" / "bin" / "ffmpeg.exe")
-        with patch("audio_generation.shutil.which", return_value=None):
-            with patch.object(Path, "exists", autospec=True, side_effect=lambda path: str(path) == expected):
-                resolved = resolve_ffmpeg(None)
+        with patch.dict("audio_generation.os.environ", {"FFMPEG_PATH": ""}):
+            with patch("audio_generation.shutil.which", return_value=None):
+                with patch.object(Path, "exists", autospec=True, side_effect=lambda path: str(path) == expected):
+                    resolved = resolve_ffmpeg(None)
         self.assertEqual(resolved, expected)
+
+
+class LocalRuntimeTests(unittest.TestCase):
+    def test_configure_local_runtime_sets_project_cache_dirs(self) -> None:
+        with patch.dict("local_runtime.os.environ", {}, clear=True):
+            with patch.object(Path, "mkdir", autospec=True) as mkdir:
+                configure_local_runtime()
+
+            self.assertEqual(local_runtime.os.environ["HF_HOME"], str(DEFAULT_HF_HOME))
+            self.assertEqual(local_runtime.os.environ["TORCH_HOME"], str(DEFAULT_TORCH_HOME))
+            self.assertEqual(mkdir.call_count, 2)
+
+    def test_configure_local_runtime_prepends_local_tool_dirs(self) -> None:
+        with patch.dict("local_runtime.os.environ", {"PATH": "C:/Windows/System32"}, clear=True):
+            with patch.object(Path, "mkdir", autospec=True):
+                configure_local_runtime()
+
+            entries = local_runtime.os.environ["PATH"].split(os.pathsep)
+            self.assertEqual(entries[:2], [str(LOCAL_SOX_DIR), str(LOCAL_TOOLS_DIR)])
+
+
+class QwenModelResolutionTests(unittest.TestCase):
+    def test_resolve_qwen_custom_model_source_uses_1_7b_env_path(self) -> None:
+        expected = (ROOT.parent / ".local-tts-ai" / "models" / "qwen3-tts-1-7b-custom").resolve()
+        with patch.dict("audio_generation.os.environ", {"QWEN_TTS_1_7B_MODEL_PATH": str(expected)}):
+            resolved = resolve_qwen_custom_model_source("qwen-1.7b-custom")
+
+        self.assertEqual(resolved, str(expected))
+
+    def test_resolve_qwen_custom_model_source_uses_1_7b_default_path(self) -> None:
+        expected = ROOT.parent / ".local-tts-ai" / "models" / "qwen3-tts-1-7b-custom"
+        with patch.dict("audio_generation.os.environ", {}, clear=True):
+            with patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected):
+                resolved = resolve_qwen_custom_model_source("qwen-1.7b-custom")
+
+        self.assertEqual(resolved, str(expected))
 
 
 class SynthesisTests(unittest.TestCase):
@@ -260,6 +446,67 @@ class SynthesisTests(unittest.TestCase):
         self.assertEqual(last_call["split_pattern"], r"\n{2,}")
 
 
+class GenerationBackendTests(unittest.TestCase):
+    def test_generate_audio_from_cleaned_text_uses_qwen_backend(self) -> None:
+        from generation import generate_audio_from_cleaned_text
+
+        output_dir = ROOT / ".test-tmp" / "qwen-backend"
+        options = GenerationOptions(
+            output_dir=output_dir,
+            backend="qwen-0.6b-custom",
+            voice="Aiden",
+            wav_only=True,
+        )
+        expected = [np.array([0.1, 0.2, 0.3], dtype=np.float32)]
+
+        with patch("audio_generation.synthesize_qwen_custom_chunks", return_value=(expected, 24000)) as synthesize:
+            with patch("audio_generation.save_final_wav", return_value=(output_dir / "sample" / "sample.wav", 1.0)):
+                text = " ".join(
+                    [
+                        "This is a short Qwen paragraph.",
+                        "Another short paragraph follows.",
+                        "A third short paragraph should be merged.",
+                    ]
+                )
+                result = generate_audio_from_cleaned_text(text, "sample", options)
+
+        synthesize.assert_called_once()
+        self.assertEqual(synthesize.call_args.kwargs["chunks"][0], text)
+        self.assertEqual(synthesize.call_args.kwargs["speaker"], "Aiden")
+        self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-0.6b-custom")
+        self.assertIsNone(synthesize.call_args.kwargs["instruct"])
+        self.assertEqual(result.backend, "qwen-0.6b-custom")
+        self.assertEqual(result.voice, "Aiden")
+        self.assertIsNotNone(result.model_source)
+        self.assertIsNone(result.mp3_path)
+
+    def test_generate_audio_from_cleaned_text_uses_qwen_1_7b_backend(self) -> None:
+        from generation import generate_audio_from_cleaned_text
+
+        output_dir = ROOT / ".test-tmp" / "qwen-1-7b-backend"
+        options = GenerationOptions(
+            output_dir=output_dir,
+            backend="qwen-1.7b-custom",
+            voice="Ryan",
+            instruct="Read evenly.",
+            wav_only=True,
+        )
+        expected = [np.array([0.1, 0.2, 0.3], dtype=np.float32)]
+
+        with patch("audio_generation.synthesize_qwen_custom_chunks", return_value=(expected, 24000)) as synthesize:
+            with patch("audio_generation.save_final_wav", return_value=(output_dir / "sample" / "sample.wav", 1.0)):
+                result = generate_audio_from_cleaned_text("Hello from Qwen.", "sample", options)
+
+        synthesize.assert_called_once()
+        self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-1.7b-custom")
+        self.assertEqual(synthesize.call_args.kwargs["instruct"], "Read evenly.")
+        self.assertEqual(result.backend, "qwen-1.7b-custom")
+        self.assertEqual(result.voice, "Ryan")
+        self.assertIsNotNone(result.model_source)
+        self.assertEqual(result.instruct, "Read evenly.")
+        self.assertIsNone(result.mp3_path)
+
+
 class GenerationJobRunnerTests(unittest.TestCase):
     def test_runner_processes_jobs_and_marks_success(self) -> None:
         runner = GenerationJobRunner(JOB_STORE, max_queued_jobs=1)
@@ -282,6 +529,9 @@ class GenerationJobRunnerTests(unittest.TestCase):
             chunk_count=1,
             cleaned_character_count=11,
             duration_seconds=1.0,
+            backend="kokoro",
+            voice="af_heart",
+            model_source="hexgrad/Kokoro-82M",
         )
 
         with patch("audio_server.generate_from_request", return_value=expected):

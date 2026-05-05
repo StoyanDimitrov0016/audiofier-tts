@@ -179,8 +179,40 @@ def merge_small_chunks(chunks: list[str], min_chars: int = 140, max_chars: int =
     return merged
 
 
-def make_chunks(text: str, max_chars: int = 1200, min_chunk_chars: int = 140) -> list[str]:
+def pack_chunks(chunks: list[str], max_chars: int = 1200) -> list[str]:
+    packed: list[str] = []
+    current: str | None = None
+
+    for chunk in chunks:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+
+        if current is None:
+            current = chunk
+            continue
+
+        combined = f"{current}\n\n{chunk}"
+        if len(combined) <= max_chars:
+            current = combined
+        else:
+            packed.append(current)
+            current = chunk
+
+    if current is not None:
+        packed.append(current)
+
+    return packed
+
+
+def make_chunks(
+    text: str,
+    max_chars: int = 1200,
+    min_chunk_chars: int = 140,
+    pack_to_max: bool = False,
+) -> list[str]:
     output: list[str] = []
     for paragraph in paragraph_chunks(text):
         output.extend(split_long_chunk(paragraph, max_chars=max_chars))
-    return merge_small_chunks(output, min_chars=min_chunk_chars, max_chars=max_chars)
+    merged = merge_small_chunks(output, min_chars=min_chunk_chars, max_chars=max_chars)
+    return pack_chunks(merged, max_chars=max_chars) if pack_to_max else merged

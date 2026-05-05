@@ -30,6 +30,33 @@ import {
   startChapterAudioGeneration,
 } from "../server/lessons";
 
+const DEFAULT_AUDIO_BACKEND = "kokoro";
+const BACKEND_LABELS: Record<string, string> = {
+  kokoro: "Kokoro",
+  "qwen-0.6b-custom": "Qwen 0.6B CustomVoice",
+  "qwen-1.7b-custom": "Qwen 1.7B CustomVoice",
+};
+const QWEN_STYLE_OPTIONS = [
+  {
+    id: "neutral",
+    label: "Neutral narration",
+    instruct:
+      "Read in one consistent narrator voice. Use a calm, neutral audiobook narration style. Do not act out characters or change voices for reported speech. Keep emotion restrained, avoid dramatic emphasis, and keep intonation steady between paragraphs.",
+  },
+  {
+    id: "plain",
+    label: "Plain lecture",
+    instruct:
+      "Read in one consistent narrator voice, clearly and evenly like a lecture recording. Do not perform characters. Use minimal emotion, keep steady pacing, and avoid expressive rises at the beginning of each section.",
+  },
+  {
+    id: "warm",
+    label: "Warm audiobook",
+    instruct:
+      "Read in one consistent narrator voice with a warm audiobook tone. Do not act out characters or shift into dialogue performance. Keep the delivery intimate, restrained, and natural without becoming theatrical or overly emotional.",
+  },
+] as const;
+
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
   loader: async ({ params }) => {
     const [groupDetails, chapter, voices] = await Promise.all([
@@ -51,7 +78,10 @@ export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
 function LessonIndexPage() {
   const { group, chapter, voices } = Route.useLoaderData();
   const router = useRouter();
-  const [voice, setVoice] = useState(voices.defaultVoice);
+  const defaultVoice = voices.voices.find((availableVoice: AudioVoice) => availableVoice.id === voices.defaultVoice);
+  const [backend, setBackend] = useState(defaultVoice?.backend ?? DEFAULT_AUDIO_BACKEND);
+  const [voice, setVoice] = useState(defaultVoice?.id ?? voices.defaultVoice);
+  const [style, setStyle] = useState<(typeof QWEN_STYLE_OPTIONS)[number]["id"]>("neutral");
   const [speed, setSpeed] = useState(1);
   const [wavOnly, setWavOnly] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -68,9 +98,21 @@ function LessonIndexPage() {
         ? 8
         : 0;
 
-  const selectedVoice =
-    voices.voices.find((availableVoice: AudioVoice) => availableVoice.id === voice) ?? voices.voices[0];
-  const voicesByLanguage = voices.voices.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
+  const backendOptions = Array.from(
+    new Map(
+      voices.voices.map((availableVoice: AudioVoice) => {
+        const voiceBackend = availableVoice.backend ?? DEFAULT_AUDIO_BACKEND;
+        return [voiceBackend, BACKEND_LABELS[voiceBackend] ?? voiceBackend] as const;
+      })
+    )
+  );
+  const voicesForBackend = voices.voices.filter(
+    (availableVoice: AudioVoice) => (availableVoice.backend ?? DEFAULT_AUDIO_BACKEND) === backend
+  );
+  const isQwenBackend = backend.startsWith("qwen-");
+  const selectedStyle = QWEN_STYLE_OPTIONS.find((option) => option.id === style) ?? QWEN_STYLE_OPTIONS[0];
+  const selectedVoice = voicesForBackend.find((availableVoice: AudioVoice) => availableVoice.id === voice);
+  const voicesByLanguage = voicesForBackend.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
     groups[availableVoice.language] ??= [];
     groups[availableVoice.language].push(availableVoice);
     return groups;
@@ -96,9 +138,11 @@ function LessonIndexPage() {
         data: {
           groupId: group.id,
           chapterId: chapter.id,
+          backend,
           voice,
           langCode: selectedVoice?.lang_code,
           speed,
+          instruct: isQwenBackend ? selectedStyle.instruct : undefined,
           wavOnly,
         },
       });
@@ -226,11 +270,53 @@ function LessonIndexPage() {
               ) : null}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-[minmax(80px,0.75fr)_minmax(0,180px)_auto] sm:items-center">
-              <div className="order-2 flex items-center gap-2">
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label
+                  htmlFor="backend"
+                  className="text-xs uppercase tracking-wider"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                >
+                  Model
+                </Label>
+                <Select
+                  value={backend}
+                  onValueChange={(nextBackend) => {
+                    if (!nextBackend) {
+                      return;
+                    }
+
+                    setBackend(nextBackend);
+                    const nextVoice = voices.voices.find(
+                      (availableVoice: AudioVoice) =>
+                        (availableVoice.backend ?? DEFAULT_AUDIO_BACKEND) === nextBackend
+                    );
+                    if (nextVoice) {
+                      setVoice(nextVoice.id);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    id="backend"
+                    className="w-full"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {backendOptions.map(([backendId, label]) => (
+                      <SelectItem key={backendId} value={backendId}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
                 <Label
                   htmlFor="voice"
-                  className="sr-only"
+                  className="text-xs uppercase tracking-wider"
                   style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
                 >
                   Voice
@@ -266,7 +352,7 @@ function LessonIndexPage() {
                 </Select>
                 {selectedVoice ? (
                   <p
-                    className="hidden text-xs"
+                    className="text-xs"
                     style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
                   >
                     {selectedVoice.language} · {selectedVoice.gender}
@@ -274,7 +360,42 @@ function LessonIndexPage() {
                 ) : null}
               </div>
 
-              <div className="order-1 flex items-center gap-2">
+              <div className="grid gap-2">
+                <Label
+                  htmlFor="style"
+                  className="text-xs uppercase tracking-wider"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                >
+                  Style
+                </Label>
+                <Select
+                  value={style}
+                  disabled={!isQwenBackend}
+                  onValueChange={(nextStyle) => {
+                    const knownStyle = QWEN_STYLE_OPTIONS.find((option) => option.id === nextStyle);
+                    if (knownStyle) {
+                      setStyle(knownStyle.id);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    id="style"
+                    className="w-full"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {QWEN_STYLE_OPTIONS.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
                 <div className="order-2 flex shrink-0 items-center gap-2">
                   <Label
                     htmlFor="speed"
@@ -311,7 +432,7 @@ function LessonIndexPage() {
                 </div>
               </div>
 
-              <Label className="order-3 flex cursor-pointer select-none items-center gap-2">
+              <Label className="flex cursor-pointer select-none items-center gap-2">
                 <Checkbox checked={wavOnly} onCheckedChange={(checked) => setWavOnly(Boolean(checked))} />
                 <span className="whitespace-nowrap text-sm" style={{ color: "var(--muted-foreground)" }}>
                   WAV-only
@@ -391,6 +512,10 @@ function LessonIndexPage() {
 
                 <dl className="grid gap-2.5">
                   {[
+                    ...(generatedAudio.backend ? [{ label: "model", value: generatedAudio.backend }] : []),
+                    ...(generatedAudio.voice ? [{ label: "voice", value: generatedAudio.voice }] : []),
+                    ...(generatedAudio.instruct ? [{ label: "style", value: generatedAudio.instruct }] : []),
+                    ...(generatedAudio.modelSource ? [{ label: "source", value: generatedAudio.modelSource }] : []),
                     { label: "output", value: generatedAudio.lessonOutputDir },
                     { label: "wav", value: generatedAudio.wavPath },
                     ...(generatedAudio.mp3Path ? [{ label: "mp3", value: generatedAudio.mp3Path }] : []),

@@ -4,9 +4,11 @@ export const GenerateAudioInputSchema = z.object({
   text: z.string().refine((value) => value.trim().length > 0, "Lesson text is required."),
   stem: z.string().trim().min(1, "Lesson name is required."),
   suffix: z.enum([".md", ".txt"]),
+  backend: z.string().trim().min(1, "Backend is required.").optional(),
   voice: z.string().trim().min(1, "Voice is required."),
   langCode: z.string().trim().min(1, "Language code is required.").optional(),
   speed: z.number().positive("Speed must be greater than 0."),
+  instruct: z.string().trim().min(1).optional(),
   wavOnly: z.boolean(),
   outputDir: z.string().trim().min(1).optional(),
 });
@@ -20,6 +22,10 @@ export const GenerateAudioResultSchema = z.object({
   cleanedCharacterCount: z.number(),
   durationSeconds: z.number(),
   formattedDuration: z.string(),
+  backend: z.string().optional(),
+  voice: z.string().optional(),
+  modelSource: z.string().nullable().optional(),
+  instruct: z.string().nullable().optional(),
 });
 
 export const GenerateAudioProgressSchema = z.object({
@@ -45,6 +51,7 @@ export const AudioVoiceSchema = z.object({
   language: z.string(),
   gender: z.string(),
   grade: z.string().nullable(),
+  backend: z.string().optional(),
 });
 
 export const AudioVoicesResponseSchema = z.object({
