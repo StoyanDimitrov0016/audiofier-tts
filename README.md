@@ -84,6 +84,7 @@ npm run dev
 - npm `11.x`
 - Python `3.12`
 - FFmpeg for MP3 output
+- SoX for Qwen TTS development
 
 The Python virtual environment is created at:
 
@@ -115,6 +116,47 @@ For VS Code/Pylance, select:
 ```text
 audio-generator\.venv\Scripts\python.exe
 ```
+
+## Local Model Assets
+
+Runtime model files and AI caches belong in the project-local ignored folder:
+
+```text
+.local-tts-ai/
+  models/kokoro-82m/
+  models/qwen3-tts-0-6b-custom/
+  models/qwen3-tts-tokenizer-12hz/
+  cache/huggingface/
+  cache/torch/
+```
+
+`.local-tts-ai/` is ignored by Git. Do not commit model weights, Hugging Face caches, Torch caches, generated audio, logs, or virtual environments.
+
+Download models manually from the repository root:
+
+```powershell
+huggingface-cli download hexgrad/Kokoro-82M --local-dir ".local-tts-ai\models\kokoro-82m"
+huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir ".local-tts-ai\models\qwen3-tts-0-6b-custom"
+huggingface-cli download Qwen/Qwen3-TTS-Tokenizer-12Hz --local-dir ".local-tts-ai\models\qwen3-tts-tokenizer-12hz"
+```
+
+If Hugging Face authentication is needed:
+
+```powershell
+huggingface-cli login
+```
+
+The audio generator defaults caches into `.local-tts-ai/cache`. You can override local paths before starting the API:
+
+```powershell
+$env:KOKORO_MODEL_PATH = ".local-tts-ai\models\kokoro-82m"
+$env:QWEN_TTS_MODEL_PATH = ".local-tts-ai\models\qwen3-tts-0-6b-custom"
+$env:QWEN_TTS_TOKENIZER_PATH = ".local-tts-ai\models\qwen3-tts-tokenizer-12hz"
+$env:HF_HOME = ".local-tts-ai\cache\huggingface"
+$env:TORCH_HOME = ".local-tts-ai\cache\torch"
+```
+
+Kokoro remains the default TTS backend. Qwen is used only when the request selects backend `qwen-0.6b-custom` with supported speakers `Ryan` or `Aiden`.
 
 ## Storage Model
 
