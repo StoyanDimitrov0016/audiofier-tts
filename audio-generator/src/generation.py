@@ -29,6 +29,7 @@ class GenerationOptions:
     wav_only: bool = False
     ffmpeg_path: str | None = None
     mp3_bitrate: str = "96k"
+    instruct: str | None = None
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,7 @@ class GenerationResult:
     backend: str
     voice: str
     model_source: str | None = None
+    instruct: str | None = None
 
     @property
     def formatted_duration(self) -> str:
@@ -148,6 +150,7 @@ def generate_audio_from_cleaned_text(
             chunks=chunks,
             speaker=options.voice,
             backend=options.backend,
+            instruct=options.instruct,
             progress_callback=progress_callback,
         )
     else:
@@ -213,6 +216,7 @@ def generate_audio_from_cleaned_text(
         backend=options.backend,
         voice=options.voice,
         model_source=model_source,
+        instruct=options.instruct if options.backend in QWEN_CUSTOM_BACKEND_IDS else None,
     )
 
 

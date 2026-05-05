@@ -373,6 +373,7 @@ async function saveGenerationResult(input: {
     backend: input.result.backend,
     voice: input.result.voice,
     modelSource: input.result.modelSource,
+    instruct: input.result.instruct,
     generatedAt,
   };
 

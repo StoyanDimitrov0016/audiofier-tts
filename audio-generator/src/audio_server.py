@@ -40,6 +40,7 @@ SUPPORTED_GENERATION_REQUEST_KEYS = frozenset(
         "text",
         "voice",
         "wavOnly",
+        "instruct",
     }
 )
 
@@ -186,6 +187,7 @@ def options_from_payload(payload: dict[str, Any], config: ServerConfig) -> Gener
         speed=get_float(payload, "speed", 1.0),
         lang_code=get_string(payload, "langCode", DEFAULT_LANG_CODE),
         wav_only=get_bool(payload, "wavOnly", False),
+        instruct=get_optional_string(payload, "instruct"),
     )
     try:
         validate_generation_options(options)
@@ -217,6 +219,7 @@ def result_to_payload(result: GenerationResult) -> dict[str, Any]:
         "backend": result.backend,
         "voice": result.voice,
         "modelSource": result.model_source,
+        "instruct": result.instruct,
     }
 
 

@@ -19,6 +19,7 @@ export type GeneratedAudio = {
   backend?: string;
   voice?: string;
   modelSource?: string | null;
+  instruct?: string | null;
   generatedAt: string;
 };
 
@@ -45,5 +46,6 @@ export type LessonLibrary = {
 export type AudioSettings = {
   voice: string;
   speed: number;
+  instruct?: string;
   wavOnly: boolean;
 };

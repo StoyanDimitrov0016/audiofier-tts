@@ -167,6 +167,7 @@ export const startChapterAudioGeneration = createServerFn({ method: "POST" })
       voice: data.voice,
       langCode: data.langCode,
       speed: data.speed,
+      instruct: data.instruct,
       wavOnly: data.wavOnly,
       outputDir: lessonRepository.getGroupGeneratedOutputDir(chapter.groupId),
     });

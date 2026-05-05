@@ -183,6 +183,7 @@ class ServerRequestTests(unittest.TestCase):
             {
                 "backend": "qwen-0.6b-custom",
                 "voice": "Aiden",
+                "instruct": "Read evenly.",
                 "wavOnly": True,
             },
             config,
@@ -190,6 +191,7 @@ class ServerRequestTests(unittest.TestCase):
 
         self.assertEqual(options.backend, "qwen-0.6b-custom")
         self.assertEqual(options.voice, "Aiden")
+        self.assertEqual(options.instruct, "Read evenly.")
 
     def test_options_from_payload_defaults_qwen_1_7b_voice_to_ryan(self) -> None:
         output_dir = ROOT / "server-output"
@@ -407,6 +409,7 @@ class GenerationBackendTests(unittest.TestCase):
         synthesize.assert_called_once()
         self.assertEqual(synthesize.call_args.kwargs["speaker"], "Aiden")
         self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-0.6b-custom")
+        self.assertIsNone(synthesize.call_args.kwargs["instruct"])
         self.assertEqual(result.backend, "qwen-0.6b-custom")
         self.assertEqual(result.voice, "Aiden")
         self.assertIsNotNone(result.model_source)
@@ -420,6 +423,7 @@ class GenerationBackendTests(unittest.TestCase):
             output_dir=output_dir,
             backend="qwen-1.7b-custom",
             voice="Ryan",
+            instruct="Read evenly.",
             wav_only=True,
         )
         expected = [np.array([0.1, 0.2, 0.3], dtype=np.float32)]
@@ -430,9 +434,11 @@ class GenerationBackendTests(unittest.TestCase):
 
         synthesize.assert_called_once()
         self.assertEqual(synthesize.call_args.kwargs["backend"], "qwen-1.7b-custom")
+        self.assertEqual(synthesize.call_args.kwargs["instruct"], "Read evenly.")
         self.assertEqual(result.backend, "qwen-1.7b-custom")
         self.assertEqual(result.voice, "Ryan")
         self.assertIsNotNone(result.model_source)
+        self.assertEqual(result.instruct, "Read evenly.")
         self.assertIsNone(result.mp3_path)
 
 

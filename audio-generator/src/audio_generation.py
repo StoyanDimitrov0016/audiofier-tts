@@ -245,6 +245,7 @@ def synthesize_qwen_custom_chunks(
     chunks: Iterable[str],
     speaker: str,
     backend: str = QWEN_CUSTOM_BACKEND_ID,
+    instruct: str | None = None,
     progress_callback: ProgressCallback | None = None,
 ) -> tuple[list[np.ndarray], int]:
     if backend not in QWEN_CUSTOM_BACKEND_IDS:
@@ -274,6 +275,7 @@ def synthesize_qwen_custom_chunks(
             text=chunk,
             speaker=speaker,
             language="English",
+            instruct=instruct,
         )
 
         if not generated_wavs:

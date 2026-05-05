@@ -36,6 +36,23 @@ const BACKEND_LABELS: Record<string, string> = {
   "qwen-0.6b-custom": "Qwen 0.6B CustomVoice",
   "qwen-1.7b-custom": "Qwen 1.7B CustomVoice",
 };
+const QWEN_STYLE_OPTIONS = [
+  {
+    id: "neutral",
+    label: "Neutral narration",
+    instruct: "Read in a calm, neutral audiobook narration style. Keep emotion restrained and avoid dramatic emphasis.",
+  },
+  {
+    id: "plain",
+    label: "Plain lecture",
+    instruct: "Read clearly and evenly like a lecture recording. Use minimal emotion and steady pacing.",
+  },
+  {
+    id: "warm",
+    label: "Warm audiobook",
+    instruct: "Read with a warm audiobook tone. Keep the delivery gentle and natural without becoming theatrical.",
+  },
+] as const;
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
   loader: async ({ params }) => {
@@ -61,6 +78,7 @@ function LessonIndexPage() {
   const defaultVoice = voices.voices.find((availableVoice: AudioVoice) => availableVoice.id === voices.defaultVoice);
   const [backend, setBackend] = useState(defaultVoice?.backend ?? DEFAULT_AUDIO_BACKEND);
   const [voice, setVoice] = useState(defaultVoice?.id ?? voices.defaultVoice);
+  const [style, setStyle] = useState<(typeof QWEN_STYLE_OPTIONS)[number]["id"]>("neutral");
   const [speed, setSpeed] = useState(1);
   const [wavOnly, setWavOnly] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -88,6 +106,8 @@ function LessonIndexPage() {
   const voicesForBackend = voices.voices.filter(
     (availableVoice: AudioVoice) => (availableVoice.backend ?? DEFAULT_AUDIO_BACKEND) === backend
   );
+  const isQwenBackend = backend.startsWith("qwen-");
+  const selectedStyle = QWEN_STYLE_OPTIONS.find((option) => option.id === style) ?? QWEN_STYLE_OPTIONS[0];
   const selectedVoice = voicesForBackend.find((availableVoice: AudioVoice) => availableVoice.id === voice);
   const voicesByLanguage = voicesForBackend.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
     groups[availableVoice.language] ??= [];
@@ -119,6 +139,7 @@ function LessonIndexPage() {
           voice,
           langCode: selectedVoice?.lang_code,
           speed,
+          instruct: isQwenBackend ? selectedStyle.instruct : undefined,
           wavOnly,
         },
       });
@@ -336,6 +357,41 @@ function LessonIndexPage() {
                 ) : null}
               </div>
 
+              <div className="grid gap-2">
+                <Label
+                  htmlFor="style"
+                  className="text-xs uppercase tracking-wider"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                >
+                  Style
+                </Label>
+                <Select
+                  value={style}
+                  disabled={!isQwenBackend}
+                  onValueChange={(nextStyle) => {
+                    const knownStyle = QWEN_STYLE_OPTIONS.find((option) => option.id === nextStyle);
+                    if (knownStyle) {
+                      setStyle(knownStyle.id);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    id="style"
+                    className="w-full"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {QWEN_STYLE_OPTIONS.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-center gap-2">
                 <div className="order-2 flex shrink-0 items-center gap-2">
                   <Label
@@ -455,6 +511,7 @@ function LessonIndexPage() {
                   {[
                     ...(generatedAudio.backend ? [{ label: "model", value: generatedAudio.backend }] : []),
                     ...(generatedAudio.voice ? [{ label: "voice", value: generatedAudio.voice }] : []),
+                    ...(generatedAudio.instruct ? [{ label: "style", value: generatedAudio.instruct }] : []),
                     ...(generatedAudio.modelSource ? [{ label: "source", value: generatedAudio.modelSource }] : []),
                     { label: "output", value: generatedAudio.lessonOutputDir },
                     { label: "wav", value: generatedAudio.wavPath },

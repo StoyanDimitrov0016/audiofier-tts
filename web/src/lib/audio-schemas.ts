@@ -8,6 +8,7 @@ export const GenerateAudioInputSchema = z.object({
   voice: z.string().trim().min(1, "Voice is required."),
   langCode: z.string().trim().min(1, "Language code is required.").optional(),
   speed: z.number().positive("Speed must be greater than 0."),
+  instruct: z.string().trim().min(1).optional(),
   wavOnly: z.boolean(),
   outputDir: z.string().trim().min(1).optional(),
 });
@@ -24,6 +25,7 @@ export const GenerateAudioResultSchema = z.object({
   backend: z.string().optional(),
   voice: z.string().optional(),
   modelSource: z.string().nullable().optional(),
+  instruct: z.string().nullable().optional(),
 });
 
 export const GenerateAudioProgressSchema = z.object({
