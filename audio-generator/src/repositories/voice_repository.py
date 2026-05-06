@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 DEFAULT_VOICE_ID = "af_heart"
-QWEN_CUSTOM_BACKEND_ID = "qwen-0.6b-custom"
-QWEN_CUSTOM_1_7B_BACKEND_ID = "qwen-1.7b-custom"
-QWEN_CUSTOM_BACKEND_IDS = frozenset({QWEN_CUSTOM_BACKEND_ID, QWEN_CUSTOM_1_7B_BACKEND_ID})
+QWEN_CUSTOM_MODEL_ID = "qwen-0.6b-custom"
+QWEN_CUSTOM_1_7B_MODEL_ID = "qwen-1.7b-custom"
+QWEN_CUSTOM_MODEL_IDS = frozenset({QWEN_CUSTOM_MODEL_ID, QWEN_CUSTOM_1_7B_MODEL_ID})
 QWEN_CUSTOM_DEFAULT_SPEAKER = "Ryan"
 
 
@@ -17,7 +17,7 @@ class Voice:
     language: str
     gender: str
     grade: str | None = None
-    backend: str = "kokoro"
+    model_id: str = "kokoro"
 
 
 VOICES = [
@@ -75,12 +75,59 @@ VOICES = [
     Voice("pf_dora", "Dora", "p", "Brazilian Portuguese", "female"),
     Voice("pm_alex", "Alex", "p", "Brazilian Portuguese", "male"),
     Voice("pm_santa", "Santa", "p", "Brazilian Portuguese", "male"),
-    Voice("Ryan", "Ryan", "en", "English", "male", backend=QWEN_CUSTOM_BACKEND_ID),
-    Voice("Aiden", "Aiden", "en", "English", "male", backend=QWEN_CUSTOM_BACKEND_ID),
-    Voice("Ryan", "Ryan", "en", "English", "male", backend=QWEN_CUSTOM_1_7B_BACKEND_ID),
-    Voice("Aiden", "Aiden", "en", "English", "male", backend=QWEN_CUSTOM_1_7B_BACKEND_ID),
+    Voice("Ryan", "Ryan", "en", "English", "male", model_id=QWEN_CUSTOM_MODEL_ID),
+    Voice("Aiden", "Aiden", "en", "English", "male", model_id=QWEN_CUSTOM_MODEL_ID),
+    Voice("Ryan", "Ryan", "en", "English", "male", model_id=QWEN_CUSTOM_1_7B_MODEL_ID),
+    Voice("Aiden", "Aiden", "en", "English", "male", model_id=QWEN_CUSTOM_1_7B_MODEL_ID),
 ]
 
 
-def list_voices() -> list[dict[str, str | None]]:
-    return [asdict(voice) for voice in VOICES]
+@dataclass(frozen=True)
+class VoiceRecord:
+    id: str
+    name: str
+    lang_code: str
+    language: str
+    gender: str
+    grade: str | None
+    model_id: str
+
+
+class VoiceRepository:
+    def __init__(self) -> None:
+        self._voices = [
+            VoiceRecord(
+                id=voice.id,
+                name=voice.name,
+                lang_code=voice.lang_code,
+                language=voice.language,
+                gender=voice.gender,
+                grade=voice.grade,
+                model_id=voice.model_id,
+            )
+            for voice in VOICES
+        ]
+
+    def default_voice_for_model(self, model_id: str) -> str:
+        if model_id == "kokoro":
+            return DEFAULT_VOICE_ID
+        return QWEN_CUSTOM_DEFAULT_SPEAKER
+
+    def list_by_model(self, model_id: str, language: str | None = None) -> list[dict[str, str | None]]:
+        normalized_language = language.casefold() if language else None
+        voices = [voice for voice in self._voices if voice.model_id == model_id]
+        if normalized_language is not None:
+            voices = [voice for voice in voices if language_matches(voice.language, normalized_language)]
+        return [asdict(voice) for voice in voices]
+
+    def languages_by_model(self, model_id: str) -> list[str]:
+        return sorted({voice.language for voice in self._voices if voice.model_id == model_id})
+
+
+def language_matches(voice_language: str, requested_language: str) -> bool:
+    normalized_voice_language = voice_language.casefold()
+    if requested_language == normalized_voice_language:
+        return True
+    if requested_language == "english":
+        return "english" in normalized_voice_language
+    return False
