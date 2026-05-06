@@ -9,12 +9,15 @@
     "format": "node ./scripts/python.mjs -m ruff format .",
     "format:check": "node ./scripts/python.mjs -m ruff format --check .",
     "lint": "node ./scripts/python.mjs -m ruff check .",
-    "typecheck": "node ./scripts/python.mjs -m py_compile audio.py server.py src/abc_generate.py src/audio_generation.py src/audio_server.py src/chunk_review.py src/cli.py src/generation.py src/local_runtime.py src/paths.py src/text_processing.py src/voices.py",
+    "typecheck": "node ./scripts/python.mjs -m compileall audio.py server.py src && npx pyright . --pythonpath .venv/Scripts/python.exe",
     "test": "node ./scripts/python.mjs -m unittest discover -s tests",
     "generate": "node ./scripts/python.mjs audio.py",
     "generate:sample": "node ./scripts/python.mjs audio.py ./lessons/sample.md --wav-only",
     "chunks": "node ./scripts/python.mjs src/chunk_review.py",
     "abc": "node ./scripts/python.mjs src/abc_generate.py",
     "abc:quick": "node ./scripts/python.mjs src/abc_generate.py --quick --wav-only"
+  },
+  "devDependencies": {
+    "pyright": "^1.1.409"
   }
 }
