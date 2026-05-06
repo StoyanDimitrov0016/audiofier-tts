@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 LOCAL_TTS_AI_DIR = PROJECT_ROOT / ".local-tts-ai"
 LOCAL_TOOLS_DIR = LOCAL_TTS_AI_DIR / "tools"
 LOCAL_SOX_DIR = LOCAL_TOOLS_DIR / "sox"
