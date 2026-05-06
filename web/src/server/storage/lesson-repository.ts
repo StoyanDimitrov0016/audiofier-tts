@@ -370,7 +370,7 @@ async function saveGenerationResult(input: {
     cleanedCharacterCount: input.result.cleanedCharacterCount,
     durationSeconds: input.result.durationSeconds,
     formattedDuration: input.result.formattedDuration,
-    backend: input.result.backend,
+    modelId: input.result.modelId,
     voice: input.result.voice,
     modelSource: input.result.modelSource,
     instruct: input.result.instruct,

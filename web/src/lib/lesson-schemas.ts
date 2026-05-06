@@ -58,7 +58,7 @@ export const GetChapterInputSchema = z.object({
 export const GenerateChapterInputSchema = z.object({
   groupId: StorageIdSchema,
   chapterId: StorageIdSchema,
-  backend: z.string().trim().min(1, "Backend is required.").optional(),
+  modelId: z.string().trim().min(1, "Model is required.").optional(),
   voice: z.string().trim().min(1, "Voice is required."),
   langCode: z.string().trim().min(1, "Language code is required.").optional(),
   speed: z.number().positive("Speed must be greater than 0."),
@@ -90,7 +90,7 @@ export const GeneratedAudioSchema = z.object({
   cleanedCharacterCount: z.number(),
   durationSeconds: z.number(),
   formattedDuration: z.string(),
-  backend: z.string().optional(),
+  modelId: z.string().optional(),
   voice: z.string().optional(),
   modelSource: z.string().nullable().optional(),
   instruct: z.string().nullable().optional(),

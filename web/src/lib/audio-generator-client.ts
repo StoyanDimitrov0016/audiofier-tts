@@ -29,6 +29,6 @@ async function readAudioResponse<T extends object>(response: Response, schema: z
 }
 
 export async function getAudioGenerationJob(jobId: string) {
-  const response = await fetch(`${getAudioGeneratorUrl()}/generate-jobs/${jobId}`);
+  const response = await fetch(`${getAudioGeneratorUrl()}/jobs/${jobId}`);
   return readAudioResponse(response, GenerateAudioJobStatusSchema);
 }

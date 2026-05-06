@@ -30,12 +30,7 @@ import {
   startChapterAudioGeneration,
 } from "../server/lessons";
 
-const DEFAULT_AUDIO_BACKEND = "kokoro";
-const BACKEND_LABELS: Record<string, string> = {
-  kokoro: "Kokoro",
-  "qwen-0.6b-custom": "Qwen 0.6B CustomVoice",
-  "qwen-1.7b-custom": "Qwen 1.7B CustomVoice",
-};
+const DEFAULT_AUDIO_MODEL = "kokoro";
 const QWEN_STYLE_OPTIONS = [
   {
     id: "neutral",
@@ -59,7 +54,7 @@ const QWEN_STYLE_OPTIONS = [
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
   loader: async ({ params }) => {
-    const [groupDetails, chapter, voices] = await Promise.all([
+    const [groupDetails, chapter, audioCatalog] = await Promise.all([
       getAudioGroupDetails({ data: { groupId: params.groupId } }),
       getChapterDetails({ data: { groupId: params.groupId, chapterId: params.chapterId } }),
       getAvailableAudioVoices(),
@@ -67,7 +62,7 @@ export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
     if (!groupDetails || !chapter) {
       throw notFound({ data: { message: "That lesson does not exist." } });
     }
-    return { group: groupDetails.group, chapter, voices };
+    return { group: groupDetails.group, chapter, audioCatalog };
   },
   pendingComponent: RoutePending,
   errorComponent: RouteError,
@@ -76,11 +71,12 @@ export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
 });
 
 function LessonIndexPage() {
-  const { group, chapter, voices } = Route.useLoaderData();
+  const { group, chapter, audioCatalog } = Route.useLoaderData();
   const router = useRouter();
-  const defaultVoice = voices.voices.find((availableVoice: AudioVoice) => availableVoice.id === voices.defaultVoice);
-  const [backend, setBackend] = useState(defaultVoice?.backend ?? DEFAULT_AUDIO_BACKEND);
-  const [voice, setVoice] = useState(defaultVoice?.id ?? voices.defaultVoice);
+  const defaultModelId = audioCatalog.models.defaultModel ?? DEFAULT_AUDIO_MODEL;
+  const defaultModelVoices = audioCatalog.voicesByModel[defaultModelId];
+  const [modelId, setModelId] = useState(defaultModelId);
+  const [voice, setVoice] = useState(defaultModelVoices?.defaultVoice ?? "");
   const [style, setStyle] = useState<(typeof QWEN_STYLE_OPTIONS)[number]["id"]>("neutral");
   const [speed, setSpeed] = useState(1);
   const [wavOnly, setWavOnly] = useState(false);
@@ -98,21 +94,12 @@ function LessonIndexPage() {
         ? 8
         : 0;
 
-  const backendOptions = Array.from(
-    new Map(
-      voices.voices.map((availableVoice: AudioVoice) => {
-        const voiceBackend = availableVoice.backend ?? DEFAULT_AUDIO_BACKEND;
-        return [voiceBackend, BACKEND_LABELS[voiceBackend] ?? voiceBackend] as const;
-      })
-    )
-  );
-  const voicesForBackend = voices.voices.filter(
-    (availableVoice: AudioVoice) => (availableVoice.backend ?? DEFAULT_AUDIO_BACKEND) === backend
-  );
-  const isQwenBackend = backend.startsWith("qwen-");
+  const selectedModel = audioCatalog.models.models.find((availableModel) => availableModel.id === modelId);
+  const voicesForModel = audioCatalog.voicesByModel[modelId]?.voices ?? [];
+  const isQwenModel = modelId.startsWith("qwen-");
   const selectedStyle = QWEN_STYLE_OPTIONS.find((option) => option.id === style) ?? QWEN_STYLE_OPTIONS[0];
-  const selectedVoice = voicesForBackend.find((availableVoice: AudioVoice) => availableVoice.id === voice);
-  const voicesByLanguage = voicesForBackend.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
+  const selectedVoice = voicesForModel.find((availableVoice: AudioVoice) => availableVoice.id === voice);
+  const voicesByLanguage = voicesForModel.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
     groups[availableVoice.language] ??= [];
     groups[availableVoice.language].push(availableVoice);
     return groups;
@@ -138,11 +125,11 @@ function LessonIndexPage() {
         data: {
           groupId: group.id,
           chapterId: chapter.id,
-          backend,
+          modelId,
           voice,
-          langCode: selectedVoice?.lang_code,
+          langCode: selectedVoice?.langCode,
           speed,
-          instruct: isQwenBackend ? selectedStyle.instruct : undefined,
+          instruct: isQwenModel && selectedModel?.supportsInstruct ? selectedStyle.instruct : undefined,
           wavOnly,
         },
       });
@@ -273,40 +260,37 @@ function LessonIndexPage() {
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label
-                  htmlFor="backend"
+                  htmlFor="model"
                   className="text-xs uppercase tracking-wider"
                   style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
                 >
                   Model
                 </Label>
                 <Select
-                  value={backend}
-                  onValueChange={(nextBackend) => {
-                    if (!nextBackend) {
+                  value={modelId}
+                  onValueChange={(nextModelId) => {
+                    if (!nextModelId) {
                       return;
                     }
 
-                    setBackend(nextBackend);
-                    const nextVoice = voices.voices.find(
-                      (availableVoice: AudioVoice) =>
-                        (availableVoice.backend ?? DEFAULT_AUDIO_BACKEND) === nextBackend
-                    );
-                    if (nextVoice) {
-                      setVoice(nextVoice.id);
+                    setModelId(nextModelId);
+                    const nextVoices = audioCatalog.voicesByModel[nextModelId];
+                    if (nextVoices) {
+                      setVoice(nextVoices.defaultVoice);
                     }
                   }}
                 >
                   <SelectTrigger
-                    id="backend"
+                    id="model"
                     className="w-full"
                     style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {backendOptions.map(([backendId, label]) => (
-                      <SelectItem key={backendId} value={backendId}>
-                        {label}
+                    {audioCatalog.models.models.map((availableModel) => (
+                      <SelectItem key={availableModel.id} value={availableModel.id}>
+                        {availableModel.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -370,7 +354,7 @@ function LessonIndexPage() {
                 </Label>
                 <Select
                   value={style}
-                  disabled={!isQwenBackend}
+                  disabled={!isQwenModel || !selectedModel?.supportsInstruct}
                   onValueChange={(nextStyle) => {
                     const knownStyle = QWEN_STYLE_OPTIONS.find((option) => option.id === nextStyle);
                     if (knownStyle) {
@@ -512,7 +496,7 @@ function LessonIndexPage() {
 
                 <dl className="grid gap-2.5">
                   {[
-                    ...(generatedAudio.backend ? [{ label: "model", value: generatedAudio.backend }] : []),
+                    ...(generatedAudio.modelId ? [{ label: "model", value: generatedAudio.modelId }] : []),
                     ...(generatedAudio.voice ? [{ label: "voice", value: generatedAudio.voice }] : []),
                     ...(generatedAudio.instruct ? [{ label: "style", value: generatedAudio.instruct }] : []),
                     ...(generatedAudio.modelSource ? [{ label: "source", value: generatedAudio.modelSource }] : []),

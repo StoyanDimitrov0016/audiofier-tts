@@ -4,7 +4,7 @@ export const GenerateAudioInputSchema = z.object({
   text: z.string().refine((value) => value.trim().length > 0, "Lesson text is required."),
   stem: z.string().trim().min(1, "Lesson name is required."),
   suffix: z.enum([".md", ".txt"]),
-  backend: z.string().trim().min(1, "Backend is required.").optional(),
+  modelId: z.string().trim().min(1, "Model is required.").optional(),
   voice: z.string().trim().min(1, "Voice is required."),
   langCode: z.string().trim().min(1, "Language code is required.").optional(),
   speed: z.number().positive("Speed must be greater than 0."),
@@ -22,7 +22,7 @@ export const GenerateAudioResultSchema = z.object({
   cleanedCharacterCount: z.number(),
   durationSeconds: z.number(),
   formattedDuration: z.string(),
-  backend: z.string().optional(),
+  modelId: z.string().optional(),
   voice: z.string().optional(),
   modelSource: z.string().nullable().optional(),
   instruct: z.string().nullable().optional(),
@@ -47,15 +47,35 @@ export const GenerateAudioJobStatusSchema = z.object({
 export const AudioVoiceSchema = z.object({
   id: z.string(),
   name: z.string(),
-  lang_code: z.string(),
+  langCode: z.string(),
   language: z.string(),
   gender: z.string(),
   grade: z.string().nullable(),
-  backend: z.string().optional(),
+  modelId: z.string(),
+});
+
+export const AudioModelSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  defaultVoice: z.string(),
+  supportsInstruct: z.boolean(),
+  languages: z.array(z.string()),
+});
+
+export const AudioModelsResponseSchema = z.object({
+  ok: z.literal(true),
+  defaultModel: z.string(),
+  models: z.array(AudioModelSchema),
 });
 
 export const AudioVoicesResponseSchema = z.object({
   ok: z.literal(true),
+  modelId: z.string(),
   defaultVoice: z.string(),
   voices: z.array(AudioVoiceSchema),
+});
+
+export const AudioModelCatalogSchema = z.object({
+  models: AudioModelsResponseSchema,
+  voicesByModel: z.record(z.string(), AudioVoicesResponseSchema),
 });

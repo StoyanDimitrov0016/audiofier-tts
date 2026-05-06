@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { getAudioVoices, startAudioGenerationJob } from "./audio-generator-api";
+import { getAudioModelVoices, getAudioModels, startAudioGenerationJob } from "./audio-generator-api";
 import { slugify } from "./lib/persistence";
 import {
   CreateChapterInputSchema,
@@ -55,10 +55,13 @@ function parseSaveChapterGenerationResultInput(input: unknown) {
   return SaveChapterGenerationResultInputSchema.parse(input);
 }
 
-function generationRunStem(chapterId: string, backend: string | undefined) {
-  const backendStem = slugify(backend ?? "kokoro", { fallback: "kokoro", maxLength: 40 });
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-  return `${chapterId}-${backendStem}-${stamp}`;
+function generationRunStem(chapterId: string, modelId: string | undefined) {
+  const modelStem = slugify(modelId ?? "kokoro", { fallback: "kokoro", maxLength: 40 });
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "Z");
+  return `${chapterId}-${modelStem}-${stamp}`;
 }
 
 async function getLessonRepository() {
@@ -161,9 +164,9 @@ export const startChapterAudioGeneration = createServerFn({ method: "POST" })
     const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
     const job = await startAudioGenerationJob({
       text: chapter.markdown,
-      stem: generationRunStem(chapter.id, data.backend),
+      stem: generationRunStem(chapter.id, data.modelId),
       suffix: ".md",
-      backend: data.backend,
+      modelId: data.modelId,
       voice: data.voice,
       langCode: data.langCode,
       speed: data.speed,
@@ -192,5 +195,18 @@ export const saveChapterAudioGenerationResult = createServerFn({ method: "POST" 
   });
 
 export const getAvailableAudioVoices = createServerFn({ method: "GET" }).handler(async () => {
-  return getAudioVoices();
+  const models = await getAudioModels();
+  const voicesByModel = Object.fromEntries(
+    await Promise.all(
+      models.models.map(async (model) => {
+        const voices = await getAudioModelVoices(model.id, "English");
+        return [model.id, voices] as const;
+      })
+    )
+  );
+
+  return {
+    models,
+    voicesByModel,
+  };
 });

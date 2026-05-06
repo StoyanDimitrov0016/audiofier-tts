@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  AudioModelsResponseSchema,
   AudioVoicesResponseSchema,
   GenerateAudioInputSchema,
   GenerateAudioJobStatusSchema,
@@ -39,7 +40,7 @@ async function readAudioResponse<T extends object>(response: Response, schema: z
 
 export async function startAudioGenerationJob(input: GenerateAudioInput) {
   const data = validateGenerateInput(input);
-  const response = await fetch(`${getAudioGeneratorUrl()}/generate-jobs`, {
+  const response = await fetch(`${getAudioGeneratorUrl()}/jobs`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -50,7 +51,16 @@ export async function startAudioGenerationJob(input: GenerateAudioInput) {
   return readAudioResponse(response, GenerateAudioJobStatusSchema);
 }
 
-export async function getAudioVoices() {
-  const response = await fetch(`${getAudioGeneratorUrl()}/voices`);
+export async function getAudioModels() {
+  const response = await fetch(`${getAudioGeneratorUrl()}/models`);
+  return readAudioResponse(response, AudioModelsResponseSchema);
+}
+
+export async function getAudioModelVoices(modelId: string, language?: string) {
+  const url = new URL(`${getAudioGeneratorUrl()}/models/${encodeURIComponent(modelId)}/voices`);
+  if (language) {
+    url.searchParams.set("language", language);
+  }
+  const response = await fetch(url);
   return readAudioResponse(response, AudioVoicesResponseSchema);
 }
