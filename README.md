@@ -1,6 +1,6 @@
 # Audiofier TTS
 
-Audiofier is a local-first app for turning Markdown lessons into generated audio. It gives you a browser UI for organizing lesson text, previewing Markdown, selecting a voice, and sending the cleaned text to a local Kokoro-based audio generator.
+Audiofier is a local-first app for turning Markdown lessons into generated audio. It gives you a browser UI for organizing lesson text, previewing Markdown, selecting a voice, and sending the cleaned text to a local model-selectable TTS audio generator.
 
 The project is intentionally local: lesson source files live on your machine, generated WAV/MP3 files stay on your machine, and the web app talks to local services only.
 
@@ -164,7 +164,7 @@ $env:HF_HOME = ".local-tts-ai\cache\huggingface"
 $env:TORCH_HOME = ".local-tts-ai\cache\torch"
 ```
 
-Kokoro remains the default TTS backend. Qwen is used only when the request selects backend `qwen-0.6b-custom` or `qwen-1.7b-custom` with supported speakers `Ryan` or `Aiden`. `QWEN_TTS_MODEL_PATH` is the compatibility override for the 0.6B model; use `QWEN_TTS_0_6B_MODEL_PATH` or `QWEN_TTS_1_7B_MODEL_PATH` when you want model-specific overrides.
+Kokoro remains the default TTS model. Qwen is used only when the request selects model `qwen-0.6b-custom` or `qwen-1.7b-custom` with supported speakers `Ryan` or `Aiden`. `QWEN_TTS_MODEL_PATH` is the compatibility override for the 0.6B model; use `QWEN_TTS_0_6B_MODEL_PATH` or `QWEN_TTS_1_7B_MODEL_PATH` when you want model-specific overrides.
 
 For MP3 output, install FFmpeg and either add it to PATH or keep it project-local at:
 
@@ -221,10 +221,27 @@ The web app sends chapter Markdown to the BFF. The BFF sends the text to the Pyt
 5. merges chunks into a final WAV,
 6. converts the WAV to MP3 unless `wavOnly` is enabled.
 
+The audio generator is a FastAPI service. Its main local API routes are:
+
+```text
+GET  /health
+GET  /models
+GET  /models/{model_id}/voices?language=english
+POST /jobs
+GET  /jobs/{job_id}
+```
+
+FastAPI exposes Swagger/OpenAPI documentation at:
+
+```text
+http://127.0.0.1:8765/docs
+```
+
 Current English defaults:
 
 ```text
 voice: af_heart
+model_id: kokoro
 lang_code: a
 speed: 1.0
 ```
