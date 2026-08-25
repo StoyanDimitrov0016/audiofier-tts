@@ -23,8 +23,6 @@ from infrastructure.audio_runtime import resolve_ffmpeg, resolve_qwen_custom_mod
 from infrastructure.local_runtime import (
     DEFAULT_HF_HOME,
     DEFAULT_TORCH_HOME,
-    LOCAL_SOX_DIR,
-    LOCAL_TOOLS_DIR,
     configure_local_runtime,
 )
 from infrastructure.paths import resolve_cli_input_path, resolve_output_dir
@@ -295,21 +293,18 @@ class FfmpegResolutionTests(unittest.TestCase):
                 resolved = resolve_ffmpeg(None)
         self.assertEqual(resolved, str(expected))
 
-    def test_resolve_ffmpeg_uses_project_local_default(self) -> None:
-        expected = ROOT.parent / ".local-tts-ai" / "tools" / "ffmpeg.exe"
+    def test_resolve_ffmpeg_uses_path(self) -> None:
+        expected = "C:/managed-tools/ffmpeg.exe"
         with patch.dict("infrastructure.audio_runtime.os.environ", {"FFMPEG_PATH": ""}):
-            with patch("infrastructure.audio_runtime.shutil.which", return_value=None):
-                with patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected):
-                    resolved = resolve_ffmpeg(None)
-        self.assertEqual(resolved, str(expected))
-
-    def test_resolve_ffmpeg_uses_common_downloads_location(self) -> None:
-        expected = str(Path.home() / "Downloads" / "ffmpeg" / "bin" / "ffmpeg.exe")
-        with patch.dict("infrastructure.audio_runtime.os.environ", {"FFMPEG_PATH": ""}):
-            with patch("infrastructure.audio_runtime.shutil.which", return_value=None):
-                with patch.object(Path, "exists", autospec=True, side_effect=lambda path: str(path) == expected):
-                    resolved = resolve_ffmpeg(None)
+            with patch("infrastructure.audio_runtime.shutil.which", return_value=expected):
+                resolved = resolve_ffmpeg(None)
         self.assertEqual(resolved, expected)
+
+    def test_resolve_ffmpeg_fails_when_not_configured_or_on_path(self) -> None:
+        with patch.dict("infrastructure.audio_runtime.os.environ", {"FFMPEG_PATH": ""}):
+            with patch("infrastructure.audio_runtime.shutil.which", return_value=None):
+                with self.assertRaises(FileNotFoundError):
+                    resolve_ffmpeg(None)
 
 
 class LocalRuntimeTests(unittest.TestCase):
@@ -321,14 +316,6 @@ class LocalRuntimeTests(unittest.TestCase):
             self.assertEqual(local_runtime.os.environ["HF_HOME"], str(DEFAULT_HF_HOME))
             self.assertEqual(local_runtime.os.environ["TORCH_HOME"], str(DEFAULT_TORCH_HOME))
             self.assertEqual(mkdir.call_count, 2)
-
-    def test_configure_local_runtime_prepends_local_tool_dirs(self) -> None:
-        with patch.dict("infrastructure.local_runtime.os.environ", {"PATH": "C:/Windows/System32"}, clear=True):
-            with patch.object(Path, "mkdir", autospec=True):
-                configure_local_runtime()
-
-            entries = local_runtime.os.environ["PATH"].split(os.pathsep)
-            self.assertEqual(entries[:2], [str(LOCAL_SOX_DIR), str(LOCAL_TOOLS_DIR)])
 
 
 class QwenModelResolutionTests(unittest.TestCase):
