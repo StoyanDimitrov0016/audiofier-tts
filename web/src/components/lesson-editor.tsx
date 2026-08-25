@@ -55,7 +55,7 @@ export default function LessonEditor(props: Props) {
 
       <form.Subscribe
         selector={(state) => [state.canSubmit, state.values.markdown] as const}
-        children={(state: readonly [boolean, string]) => {
+        children={(state) => {
           const [canSubmit, markdown] = state;
           const estimatedAudio = getEstimatedAudioDetails(markdown);
 

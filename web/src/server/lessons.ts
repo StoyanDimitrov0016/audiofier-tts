@@ -75,7 +75,7 @@ export const getLessonLibrary = createServerFn({ method: "GET" }).handler(async 
 });
 
 export const getAudioGroupDetails = createServerFn({ method: "GET" })
-  .inputValidator(parseGetGroupInput)
+  .validator(parseGetGroupInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     const group = await lessonRepository.findGroup(data.groupId);
@@ -91,7 +91,7 @@ export const getAudioGroupDetails = createServerFn({ method: "GET" })
   });
 
 export const createAudioGroup = createServerFn({ method: "POST" })
-  .inputValidator(parseCreateGroupInput)
+  .validator(parseCreateGroupInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     const group = await lessonRepository.createGroup(data);
@@ -101,7 +101,7 @@ export const createAudioGroup = createServerFn({ method: "POST" })
   });
 
 export const updateAudioGroup = createServerFn({ method: "POST" })
-  .inputValidator(parseUpdateGroupInput)
+  .validator(parseUpdateGroupInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     const group = await lessonRepository.updateGroup(data);
@@ -111,7 +111,7 @@ export const updateAudioGroup = createServerFn({ method: "POST" })
   });
 
 export const deleteAudioGroup = createServerFn({ method: "POST" })
-  .inputValidator(parseDeleteGroupInput)
+  .validator(parseDeleteGroupInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     await lessonRepository.deleteGroup(data.groupId);
@@ -121,7 +121,7 @@ export const deleteAudioGroup = createServerFn({ method: "POST" })
   });
 
 export const createChapter = createServerFn({ method: "POST" })
-  .inputValidator(parseCreateChapterInput)
+  .validator(parseCreateChapterInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     const chapter = await lessonRepository.createChapter(data);
@@ -131,14 +131,14 @@ export const createChapter = createServerFn({ method: "POST" })
   });
 
 export const getChapterDetails = createServerFn({ method: "GET" })
-  .inputValidator(parseGetChapterInput)
+  .validator(parseGetChapterInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     return lessonRepository.findChapter(data.groupId, data.chapterId);
   });
 
 export const updateChapter = createServerFn({ method: "POST" })
-  .inputValidator(parseUpdateChapterInput)
+  .validator(parseUpdateChapterInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     const chapter = await lessonRepository.updateChapter(data);
@@ -148,7 +148,7 @@ export const updateChapter = createServerFn({ method: "POST" })
   });
 
 export const deleteChapter = createServerFn({ method: "POST" })
-  .inputValidator(parseDeleteChapterInput)
+  .validator(parseDeleteChapterInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     await lessonRepository.deleteChapter(data.groupId, data.chapterId);
@@ -158,7 +158,7 @@ export const deleteChapter = createServerFn({ method: "POST" })
   });
 
 export const startChapterAudioGeneration = createServerFn({ method: "POST" })
-  .inputValidator(parseGenerateChapterInput)
+  .validator(parseGenerateChapterInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
@@ -179,7 +179,7 @@ export const startChapterAudioGeneration = createServerFn({ method: "POST" })
   });
 
 export const saveChapterAudioGenerationResult = createServerFn({ method: "POST" })
-  .inputValidator(parseSaveChapterGenerationResultInput)
+  .validator(parseSaveChapterGenerationResultInput)
   .handler(async ({ data }) => {
     const lessonRepository = await getLessonRepository();
     const chapter = await lessonRepository.getChapter(data.groupId, data.chapterId);
