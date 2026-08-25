@@ -20,20 +20,20 @@ from abc_generate import default_cases, quick_cases, read_cleaned_text
 from chunk_review import preview_chunks
 from cli import build_output_dir
 from infrastructure import local_runtime
-from infrastructure.audio_runtime import (
-    resolve_ffmpeg,
-    resolve_qwen_batch_size,
-    resolve_qwen_custom_model_source,
-    resolve_qwen_language,
-    synthesize_chunks,
-    synthesize_qwen_custom_chunks,
-)
+from infrastructure.audio_files import resolve_ffmpeg
+from infrastructure.kokoro_runtime import synthesize_kokoro
 from infrastructure.local_runtime import (
     DEFAULT_HF_HOME,
     DEFAULT_TORCH_HOME,
     configure_local_runtime,
 )
 from infrastructure.paths import resolve_cli_input_path, resolve_output_dir
+from infrastructure.qwen_runtime import (
+    resolve_qwen_batch_size,
+    resolve_qwen_custom_model_source,
+    resolve_qwen_language,
+    synthesize_qwen_custom,
+)
 from infrastructure.settings import AudioApiSettings
 from services.generation import (
     GenerationOptions,
@@ -130,12 +130,12 @@ class ChunkingTests(unittest.TestCase):
 
     def test_qwen_language_mapping_uses_model_language_names(self) -> None:
         self.assertEqual(resolve_qwen_language("a"), "English")
-        self.assertEqual(resolve_qwen_language("zh"), "Chinese")
+        self.assertEqual(resolve_qwen_language("english"), "English")
         self.assertEqual(resolve_qwen_language("Auto"), "Auto")
 
     def test_qwen_batch_size_is_explicit_and_configurable(self) -> None:
         self.assertEqual(resolve_qwen_batch_size(1), 1)
-        with patch.dict("infrastructure.audio_runtime.os.environ", {"QWEN_TTS_BATCH_SIZE": "2"}):
+        with patch.dict("infrastructure.qwen_runtime.os.environ", {"QWEN_TTS_BATCH_SIZE": "2"}):
             self.assertEqual(resolve_qwen_batch_size(), 2)
 
     def test_pack_chunks_combines_adjacent_chunks(self) -> None:
@@ -307,7 +307,7 @@ class FfmpegResolutionTests(unittest.TestCase):
     def test_resolve_ffmpeg_uses_env_path(self) -> None:
         expected = (ROOT.parent / ".local-tts-ai" / "tools" / "ffmpeg.exe").resolve()
         with (
-            patch.dict("infrastructure.audio_runtime.os.environ", {"FFMPEG_PATH": ".local-tts-ai/tools/ffmpeg.exe"}),
+            patch.dict("infrastructure.audio_files.os.environ", {"FFMPEG_PATH": ".local-tts-ai/tools/ffmpeg.exe"}),
             patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected),
         ):
             resolved = resolve_ffmpeg(None)
@@ -316,16 +316,16 @@ class FfmpegResolutionTests(unittest.TestCase):
     def test_resolve_ffmpeg_uses_path(self) -> None:
         expected = "C:/managed-tools/ffmpeg.exe"
         with (
-            patch.dict("infrastructure.audio_runtime.os.environ", {"FFMPEG_PATH": ""}),
-            patch("infrastructure.audio_runtime.shutil.which", return_value=expected),
+            patch.dict("infrastructure.audio_files.os.environ", {"FFMPEG_PATH": ""}),
+            patch("infrastructure.audio_files.shutil.which", return_value=expected),
         ):
             resolved = resolve_ffmpeg(None)
         self.assertEqual(resolved, expected)
 
     def test_resolve_ffmpeg_fails_when_not_configured_or_on_path(self) -> None:
         with (
-            patch.dict("infrastructure.audio_runtime.os.environ", {"FFMPEG_PATH": ""}),
-            patch("infrastructure.audio_runtime.shutil.which", return_value=None),
+            patch.dict("infrastructure.audio_files.os.environ", {"FFMPEG_PATH": ""}),
+            patch("infrastructure.audio_files.shutil.which", return_value=None),
             self.assertRaises(FileNotFoundError),
         ):
             resolve_ffmpeg(None)
@@ -345,7 +345,7 @@ class LocalRuntimeTests(unittest.TestCase):
 class QwenModelResolutionTests(unittest.TestCase):
     def test_resolve_qwen_custom_model_source_uses_1_7b_env_path(self) -> None:
         expected = (ROOT.parent / ".local-tts-ai" / "models" / "qwen3-tts-1-7b-custom").resolve()
-        with patch.dict("infrastructure.audio_runtime.os.environ", {"QWEN_TTS_1_7B_MODEL_PATH": str(expected)}):
+        with patch.dict("infrastructure.qwen_runtime.os.environ", {"QWEN_TTS_1_7B_MODEL_PATH": str(expected)}):
             resolved = resolve_qwen_custom_model_source("qwen-1.7b-custom")
 
         self.assertEqual(resolved, str(expected))
@@ -353,7 +353,7 @@ class QwenModelResolutionTests(unittest.TestCase):
     def test_resolve_qwen_custom_model_source_uses_1_7b_default_path(self) -> None:
         expected = ROOT.parent / ".local-tts-ai" / "models" / "qwen3-tts-1-7b-custom"
         with (
-            patch.dict("infrastructure.audio_runtime.os.environ", {}, clear=True),
+            patch.dict("infrastructure.qwen_runtime.os.environ", {}, clear=True),
             patch.object(Path, "exists", autospec=True, side_effect=lambda path: path == expected),
         ):
             resolved = resolve_qwen_custom_model_source("qwen-1.7b-custom")
@@ -386,7 +386,7 @@ class SynthesisTests(unittest.TestCase):
         fake_module.__dict__["KPipeline"] = FakePipeline
 
         with patch.dict(sys.modules, {"kokoro": fake_module}):
-            wavs = synthesize_chunks(
+            wavs = synthesize_kokoro(
                 chunks=["one chunk"],
                 voice="af_heart",
                 speed=1.0,
@@ -412,8 +412,8 @@ class SynthesisTests(unittest.TestCase):
                 count = len(text) if isinstance(text, list) else 1
                 return [np.ones(4, dtype=np.float32) for _ in range(count)], 24000
 
-        with patch("infrastructure.audio_runtime.get_qwen_custom_model", return_value=FakeQwen()):
-            wavs, sample_rate = synthesize_qwen_custom_chunks(
+        with patch("infrastructure.qwen_runtime.get_qwen_custom_model", return_value=FakeQwen()):
+            wavs, sample_rate = synthesize_qwen_custom(
                 chunks=["one", "two"],
                 speaker="Ryan",
                 language="Chinese",
@@ -441,11 +441,11 @@ class GenerationModelTests(unittest.TestCase):
 
         with (
             patch(
-                "infrastructure.audio_runtime.synthesize_qwen_custom_chunks",
+                "tts_models.qwen_model.synthesize_qwen_custom",
                 return_value=(expected, 24000),
             ) as synthesize,
             patch(
-                "infrastructure.audio_runtime.save_final_wav",
+                "infrastructure.audio_files.save_final_wav",
                 return_value=(output_dir / "sample" / "sample.wav", 1.0),
             ),
         ):
@@ -483,11 +483,11 @@ class GenerationModelTests(unittest.TestCase):
 
         with (
             patch(
-                "infrastructure.audio_runtime.synthesize_qwen_custom_chunks",
+                "tts_models.qwen_model.synthesize_qwen_custom",
                 return_value=(expected, 24000),
             ) as synthesize,
             patch(
-                "infrastructure.audio_runtime.save_final_wav",
+                "infrastructure.audio_files.save_final_wav",
                 return_value=(output_dir / "sample" / "sample.wav", 1.0),
             ),
         ):

@@ -15,6 +15,9 @@ class TtsModelDescriptor:
     name: str
     default_voice: str
     supports_instruct: bool
+    max_chunk_chars: int = 1200
+    min_chunk_chars: int = 140
+    pack_chunks: bool = False
 
 
 @dataclass(frozen=True)

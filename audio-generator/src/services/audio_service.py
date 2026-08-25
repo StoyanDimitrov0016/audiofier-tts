@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from domain.models import ProgressCallback
-from infrastructure.audio_runtime import suppress_known_runtime_noise
+from infrastructure.runtime_support import suppress_known_runtime_noise
 from repositories.audio_repository import AudioRepository
 from services.audio_transform_service import AudioTransformService
 from services.generation import (
@@ -14,8 +14,6 @@ from services.generation import (
     GenerationOptions,
     GenerationResult,
     max_chunk_chars_for_model,
-    min_chunk_chars_for_model,
-    pack_chunks_for_model,
     validate_generation_options,
     validate_text_suffix,
 )
@@ -73,9 +71,9 @@ class AudioService:
 
         chunks = self._text_preparation_service.chunk(
             cleaned,
-            max_chars=max_chunk_chars_for_model(model_id, options.max_chars),
-            min_chunk_chars=min_chunk_chars_for_model(model_id),
-            pack_to_max=pack_chunks_for_model(model_id),
+            max_chars=max_chunk_chars_for_model(model.descriptor.id, options.max_chars),
+            min_chunk_chars=model.descriptor.min_chunk_chars,
+            pack_to_max=model.descriptor.pack_chunks,
         )
         if not chunks:
             raise ValueError("No chunks were created from the input text.")

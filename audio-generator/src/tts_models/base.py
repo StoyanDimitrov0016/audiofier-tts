@@ -9,6 +9,10 @@ from services.generation import GenerationOptions
 class TtsModel(ABC):
     descriptor: TtsModelDescriptor
 
+    def validate_options(self, options: GenerationOptions) -> None:
+        if options.speed <= 0:
+            raise ValueError("speed must be greater than 0.")
+
     @abstractmethod
     def synthesize(
         self,

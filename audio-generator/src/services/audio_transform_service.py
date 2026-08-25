@@ -4,8 +4,8 @@ from pathlib import Path
 
 import numpy as np
 
-from infrastructure.audio_runtime import SAMPLE_RATE, convert_wav_to_mp3, resolve_ffmpeg
-from infrastructure.audio_runtime import merge_wavs as merge_audio_wavs
+from infrastructure.audio_files import SAMPLE_RATE, convert_wav_to_mp3, resolve_ffmpeg
+from infrastructure.audio_files import merge_wavs as merge_audio_wavs
 
 
 class AudioTransformService:

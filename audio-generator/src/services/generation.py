@@ -13,9 +13,6 @@ DEFAULT_MODEL_ID = "kokoro"
 DEFAULT_VOICE = "af_heart"
 DEFAULT_LANG_CODE = "a"
 DEFAULT_MAX_CHARS = 1200
-QWEN_MAX_CHARS = 1200
-DEFAULT_MIN_CHUNK_CHARS = 140
-QWEN_MIN_CHUNK_CHARS = 220
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
@@ -37,24 +34,25 @@ class GenerationOptions:
 
 
 def min_chunk_chars_for_model(model_id: str) -> int:
-    from infrastructure.audio_runtime import QWEN_CUSTOM_MODEL_IDS
+    from tts_models.registry import MODEL_REGISTRY
 
-    return QWEN_MIN_CHUNK_CHARS if model_id in QWEN_CUSTOM_MODEL_IDS else DEFAULT_MIN_CHUNK_CHARS
+    return MODEL_REGISTRY.get(model_id).descriptor.min_chunk_chars
 
 
 def max_chunk_chars_for_model(model_id: str, requested_max_chars: int) -> int:
-    from infrastructure.audio_runtime import QWEN_CUSTOM_MODEL_IDS
+    from tts_models.registry import MODEL_REGISTRY
 
-    if model_id in QWEN_CUSTOM_MODEL_IDS and requested_max_chars == DEFAULT_MAX_CHARS:
-        return QWEN_MAX_CHARS
-    return requested_max_chars
+    descriptor = MODEL_REGISTRY.get(model_id).descriptor
+    return descriptor.max_chunk_chars if requested_max_chars == DEFAULT_MAX_CHARS else requested_max_chars
 
 
 def pack_chunks_for_model(model_id: str) -> bool:
     # Pack adjacent short semantic units only up to the model-specific ceiling.
     # pack_chunks retains paragraph separators, avoiding the old oversized
     # 2,000-character requests while eliminating needless per-call overhead.
-    return model_id in {"qwen-0.6b-custom", "qwen-1.7b-custom"}
+    from tts_models.registry import MODEL_REGISTRY
+
+    return MODEL_REGISTRY.get(model_id).descriptor.pack_chunks
 
 
 @dataclass(frozen=True)
@@ -72,7 +70,7 @@ class GenerationResult:
 
     @property
     def formatted_duration(self) -> str:
-        from infrastructure.audio_runtime import format_duration
+        from infrastructure.audio_files import format_duration
 
         return format_duration(self.duration_seconds)
 
@@ -100,15 +98,9 @@ def validate_text_suffix(suffix: str) -> str:
 
 
 def validate_generation_options(options: GenerationOptions) -> None:
-    from infrastructure.audio_runtime import QWEN_CUSTOM_MODEL_IDS, QWEN_CUSTOM_SPEAKERS
+    from tts_models.registry import MODEL_REGISTRY
 
-    if options.model_id not in {DEFAULT_MODEL_ID, *QWEN_CUSTOM_MODEL_IDS}:
-        raise ValueError(f"Unsupported TTS model: {options.model_id}.")
-    if options.model_id in QWEN_CUSTOM_MODEL_IDS and options.voice not in QWEN_CUSTOM_SPEAKERS:
-        supported = ", ".join(sorted(QWEN_CUSTOM_SPEAKERS))
-        raise ValueError(f"Unsupported Qwen speaker: {options.voice}. Supported speakers: {supported}.")
-    if options.speed <= 0:
-        raise ValueError("speed must be greater than 0.")
+    MODEL_REGISTRY.get(options.model_id).validate_options(options)
     if options.max_chars < 200:
         raise ValueError("max_chars must be at least 200.")
     if options.pause_ms < 0:
@@ -131,19 +123,14 @@ def generate_audio_from_cleaned_text(
     options: GenerationOptions,
     progress_callback: ProgressCallback | None = None,
 ) -> GenerationResult:
-    from infrastructure.audio_runtime import (
-        QWEN_CUSTOM_MODEL_IDS,
+    from infrastructure.audio_files import (
         convert_wav_to_mp3,
         resolve_ffmpeg,
-        resolve_kokoro_model_source,
-        resolve_qwen_custom_model_source,
-        resolve_qwen_language,
         save_chunk_wavs,
         save_final_wav,
-        suppress_known_runtime_noise,
-        synthesize_chunks,
-        synthesize_qwen_custom_chunks,
     )
+    from infrastructure.runtime_support import suppress_known_runtime_noise
+    from tts_models.registry import MODEL_REGISTRY
 
     suppress_known_runtime_noise()
     validate_generation_options(options)
@@ -173,28 +160,10 @@ def generate_audio_from_cleaned_text(
     output_stem = sanitize_stem(stem)
     lesson_output_dir = options.output_dir / output_stem
 
-    sample_rate = 24000
-    model_source: str | None
-    if options.model_id in QWEN_CUSTOM_MODEL_IDS:
-        model_source = resolve_qwen_custom_model_source(options.model_id)
-        wavs, sample_rate = synthesize_qwen_custom_chunks(
-            chunks=chunks,
-            speaker=options.voice,
-            model_id=options.model_id,
-            instruct=options.instruct,
-            language=resolve_qwen_language(options.lang_code),
-            progress_callback=progress_callback,
-        )
-    else:
-        model_source = resolve_kokoro_model_source(options.repo_id)
-        wavs = synthesize_chunks(
-            chunks=chunks,
-            voice=options.voice,
-            speed=options.speed,
-            repo_id=options.repo_id,
-            lang_code=options.lang_code,
-            progress_callback=progress_callback,
-        )
+    model = MODEL_REGISTRY.get(options.model_id)
+    synthesis = model.synthesize(chunks, options, progress_callback=progress_callback)
+    wavs = synthesis.wavs
+    sample_rate = synthesis.sample_rate
 
     if progress_callback is not None:
         progress_callback(
@@ -247,8 +216,8 @@ def generate_audio_from_cleaned_text(
         duration_seconds=duration_seconds,
         model_id=options.model_id,
         voice=options.voice,
-        model_source=model_source,
-        instruct=options.instruct if options.model_id in QWEN_CUSTOM_MODEL_IDS else None,
+        model_source=synthesis.model_source,
+        instruct=options.instruct if model.descriptor.supports_instruct else None,
     )
 
 
