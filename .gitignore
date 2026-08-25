@@ -42,8 +42,12 @@ output/
 # Keep only layout markers. Lesson source and generated media are private local data.
 # -------------------------------------------------------------------
 /storage/*
+!/storage/audio/
 !/storage/generated/
 !/storage/markdowns/
+
+/storage/audio/*
+!/storage/audio/.gitkeep
 
 /storage/generated/*
 !/storage/generated/.gitkeep
@@ -113,3 +117,6 @@ web/dist/
 # -------------------------------------------------------------------
 .DS_Store
 Thumbs.db
+
+# Curated, reproducible benchmark references are intentionally versioned.
+!/benchmarks/audio/*.mp3

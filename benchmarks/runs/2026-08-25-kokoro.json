@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "input": {
+    "path": "D:\\repositories\\audiofier-tts\\1,600-chars-tts-benchmark.md",
+    "raw_characters": 1601,
+    "cleaned_characters": 1600
+  },
+  "model": {
+    "id": "kokoro",
+    "voice": "af_heart",
+    "source": "D:\\repositories\\audiofier-tts\\.local-tts-ai\\models\\kokoro-82m",
+    "instruct": null
+  },
+  "result": {
+    "wall_seconds": 10.624,
+    "seconds_per_1000_characters": 6.64,
+    "minutes_per_1000_characters": 0.111,
+    "audio_seconds": 118.325,
+    "real_time_factor": 0.09,
+    "chunks": 5,
+    "wav_path": "D:\\repositories\\audiofier-tts\\audio-generator\\output\\benchmark-final\\kokoro\\1-600-chars-tts-benchmark\\1-600-chars-tts-benchmark.wav"
+  },
+  "telemetry": {
+    "sample_interval_seconds": 1.0,
+    "sample_count": 10,
+    "system_cpu_percent": {
+      "mean": 20.88,
+      "maximum": 54.1
+    },
+    "process_cpu_percent": {
+      "mean": 159.52,
+      "maximum": 691.0
+    },
+    "process_rss_mib": {
+      "mean": 1254.52,
+      "maximum": 2190.92
+    },
+    "system_memory_percent": {
+      "mean": 60.25,
+      "maximum": 63.2
+    },
+    "gpu_utilization_percent": {
+      "mean": 29.3,
+      "maximum": 97.0
+    },
+    "gpu_memory_used_mib": {
+      "mean": 840.2,
+      "maximum": 1961.0
+    },
+    "gpu_temperature_c": {
+      "mean": 53.4,
+      "maximum": 63.0
+    },
+    "gpu_power_w": {
+      "mean": 16.4,
+      "maximum": 54.79
+    },
+    "gpu_clock_mhz": {
+      "mean": 1179.0,
+      "maximum": 2580.0
+    },
+    "samples": [
+      {
+        "elapsed_seconds": 1.062,
+        "system_cpu_percent": 0.0,
+        "process_cpu_percent": 0.0,
+        "process_rss_mib": 458.32,
+        "system_memory_percent": 57.8,
+        "gpu_utilization_percent": 5.0,
+        "gpu_memory_used_mib": 325.0,
+        "gpu_temperature_c": 50.0,
+        "gpu_power_w": 3.14,
+        "gpu_clock_mhz": 210.0
+      },
+      {
+        "elapsed_seconds": 2.102,
+        "system_cpu_percent": 14.8,
+        "process_cpu_percent": 97.1,
+        "process_rss_mib": 524.1,
+        "system_memory_percent": 57.7,
+        "gpu_utilization_percent": 0.0,
+        "gpu_memory_used_mib": 325.0,
+        "gpu_temperature_c": 50.0,
+        "gpu_power_w": 2.57,
+        "gpu_clock_mhz": 210.0
+      },
+      {
+        "elapsed_seconds": 3.147,
+        "system_cpu_percent": 20.3,
+        "process_cpu_percent": 92.4,
+        "process_rss_mib": 562.87,
+        "system_memory_percent": 58.1,
+        "gpu_utilization_percent": 7.0,
+        "gpu_memory_used_mib": 344.0,
+        "gpu_temperature_c": 50.0,
+        "gpu_power_w": 2.58,
+        "gpu_clock_mhz": 210.0
+      },
+      {
+        "elapsed_seconds": 4.189,
+        "system_cpu_percent": 12.3,
+        "process_cpu_percent": 91.0,
+        "process_rss_mib": 629.75,
+        "system_memory_percent": 58.3,
+        "gpu_utilization_percent": 46.0,
+        "gpu_memory_used_mib": 349.0,
+        "gpu_temperature_c": 50.0,
+        "gpu_power_w": 2.95,
+        "gpu_clock_mhz": 300.0
+      },
+      {
+        "elapsed_seconds": 5.233,
+        "system_cpu_percent": 12.5,
+        "process_cpu_percent": 88.0,
+        "process_rss_mib": 720.0,
+        "system_memory_percent": 58.6,
+        "gpu_utilization_percent": 24.0,
+        "gpu_memory_used_mib": 349.0,
+        "gpu_temperature_c": 50.0,
+        "gpu_power_w": 5.74,
+        "gpu_clock_mhz": 450.0
+      },
+      {
+        "elapsed_seconds": 6.296,
+        "system_cpu_percent": 54.1,
+        "process_cpu_percent": 691.0,
+        "process_rss_mib": 1593.18,
+        "system_memory_percent": 61.4,
+        "gpu_utilization_percent": 25.0,
+        "gpu_memory_used_mib": 357.0,
+        "gpu_temperature_c": 50.0,
+        "gpu_power_w": 5.53,
+        "gpu_clock_mhz": 450.0
+      },
+      {
+        "elapsed_seconds": 7.469,
+        "system_cpu_percent": 35.6,
+        "process_cpu_percent": 241.4,
+        "process_rss_mib": 1552.02,
+        "system_memory_percent": 61.2,
+        "gpu_utilization_percent": 1.0,
+        "gpu_memory_used_mib": 792.0,
+        "gpu_temperature_c": 52.0,
+        "gpu_power_w": 17.14,
+        "gpu_clock_mhz": 2250.0
+      },
+      {
+        "elapsed_seconds": 8.521,
+        "system_cpu_percent": 24.3,
+        "process_cpu_percent": 97.3,
+        "process_rss_mib": 2140.33,
+        "system_memory_percent": 63.1,
+        "gpu_utilization_percent": 97.0,
+        "gpu_memory_used_mib": 1643.0,
+        "gpu_temperature_c": 57.0,
+        "gpu_power_w": 54.79,
+        "gpu_clock_mhz": 2580.0
+      },
+      {
+        "elapsed_seconds": 9.568,
+        "system_cpu_percent": 16.2,
+        "process_cpu_percent": 100.0,
+        "process_rss_mib": 2173.72,
+        "system_memory_percent": 63.2,
+        "gpu_utilization_percent": 57.0,
+        "gpu_memory_used_mib": 1961.0,
+        "gpu_temperature_c": 62.0,
+        "gpu_power_w": 36.92,
+        "gpu_clock_mhz": 2565.0
+      },
+      {
+        "elapsed_seconds": 10.623,
+        "system_cpu_percent": 18.7,
+        "process_cpu_percent": 97.0,
+        "process_rss_mib": 2190.92,
+        "system_memory_percent": 63.1,
+        "gpu_utilization_percent": 31.0,
+        "gpu_memory_used_mib": 1957.0,
+        "gpu_temperature_c": 63.0,
+        "gpu_power_w": 32.67,
+        "gpu_clock_mhz": 2565.0
+      }
+    ]
+  },
+  "hardware": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "cpu": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "physical_cpu_cores": 10,
+    "logical_cpu_cores": 16,
+    "memory_gib": 31.69,
+    "python": "3.12.14",
+    "pytorch": "2.11.0+cu128",
+    "cuda_runtime": "12.8",
+    "cuda_available": true,
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "gpu_memory_total_mib": 8188.0
+  }
+}
