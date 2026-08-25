@@ -6,6 +6,7 @@ from infrastructure.audio_runtime import (
     QWEN_CUSTOM_DEFAULT_SPEAKER,
     QWEN_CUSTOM_MODEL_ID,
     resolve_qwen_custom_model_source,
+    resolve_qwen_language,
     synthesize_qwen_custom_chunks,
 )
 from services.generation import GenerationOptions
@@ -33,6 +34,7 @@ class QwenCustomModel(TtsModel):
             speaker=options.voice,
             model_id=self.descriptor.id,
             instruct=instruct,
+            language=resolve_qwen_language(options.lang_code),
             progress_callback=progress_callback,
         )
         return SynthesisOutput(

@@ -165,6 +165,7 @@ The audio generator defaults caches into `.local-tts-ai/cache`. You can override
 $env:KOKORO_MODEL_PATH = ".local-tts-ai\models\kokoro-82m"
 $env:QWEN_TTS_MODEL_PATH = ".local-tts-ai\models\qwen3-tts-0-6b-custom"
 $env:QWEN_TTS_1_7B_MODEL_PATH = ".local-tts-ai\models\qwen3-tts-1-7b-custom"
+$env:QWEN_TTS_BATCH_SIZE = "1"
 $env:HF_HOME = ".local-tts-ai\cache\huggingface"
 $env:TORCH_HOME = ".local-tts-ai\cache\torch"
 ```

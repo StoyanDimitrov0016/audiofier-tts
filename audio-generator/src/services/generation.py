@@ -13,9 +13,9 @@ DEFAULT_MODEL_ID = "kokoro"
 DEFAULT_VOICE = "af_heart"
 DEFAULT_LANG_CODE = "a"
 DEFAULT_MAX_CHARS = 1200
-QWEN_MAX_CHARS = 2000
+QWEN_MAX_CHARS = 1200
 DEFAULT_MIN_CHUNK_CHARS = 140
-QWEN_MIN_CHUNK_CHARS = 600
+QWEN_MIN_CHUNK_CHARS = 220
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
@@ -51,9 +51,10 @@ def max_chunk_chars_for_model(model_id: str, requested_max_chars: int) -> int:
 
 
 def pack_chunks_for_model(model_id: str) -> bool:
-    from infrastructure.audio_runtime import QWEN_CUSTOM_MODEL_IDS
-
-    return model_id in QWEN_CUSTOM_MODEL_IDS
+    # Pack adjacent short semantic units only up to the model-specific ceiling.
+    # pack_chunks retains paragraph separators, avoiding the old oversized
+    # 2,000-character requests while eliminating needless per-call overhead.
+    return model_id in {"qwen-0.6b-custom", "qwen-1.7b-custom"}
 
 
 @dataclass(frozen=True)
@@ -136,6 +137,7 @@ def generate_audio_from_cleaned_text(
         resolve_ffmpeg,
         resolve_kokoro_model_source,
         resolve_qwen_custom_model_source,
+        resolve_qwen_language,
         save_chunk_wavs,
         save_final_wav,
         suppress_known_runtime_noise,
@@ -180,6 +182,7 @@ def generate_audio_from_cleaned_text(
             speaker=options.voice,
             model_id=options.model_id,
             instruct=options.instruct,
+            language=resolve_qwen_language(options.lang_code),
             progress_callback=progress_callback,
         )
     else:
