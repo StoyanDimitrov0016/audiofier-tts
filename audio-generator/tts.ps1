@@ -9,14 +9,13 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$python = Join-Path $root ".venv\Scripts\python.exe"
 $script = Join-Path $root "audio.py"
 
-if (-not (Test-Path $python)) {
-    throw "Python virtual environment not found at $python. Run 'npm run setup:audio' from the repository root."
+if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    throw "uv was not found on PATH. Install it with Winget and restart the terminal."
 }
 
-$arguments = @($script, $InputPath) + $ExtraArgs
+$arguments = @("run", "--project", $root, "--frozen", "python", $script, $InputPath) + $ExtraArgs
 
-& $python @arguments
+& uv @arguments
 exit $LASTEXITCODE

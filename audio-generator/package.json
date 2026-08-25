@@ -2,22 +2,22 @@
   "name": "audiofier-audio-generator",
   "private": true,
   "scripts": {
-    "setup:venv": "node ./scripts/setup-venv.mjs",
-    "dev": "node ./scripts/python.mjs server.py",
-    "start": "node ./scripts/python.mjs server.py",
+    "setup": "uv sync --locked",
+    "dev": "uv run --frozen python server.py",
+    "start": "uv run --frozen python server.py",
     "build": "npm run typecheck",
-    "format": "node ./scripts/python.mjs -m ruff format .",
-    "format:check": "node ./scripts/python.mjs -m ruff format --check .",
-    "lint": "node ./scripts/python.mjs -m ruff check .",
-    "typecheck": "node ./scripts/python.mjs -m compileall audio.py server.py src && npx pyright . --pythonpath .venv/Scripts/python.exe",
-    "test": "node ./scripts/python.mjs -m unittest discover -s tests",
-    "generate": "node ./scripts/python.mjs audio.py",
-    "generate:sample": "node ./scripts/python.mjs audio.py ./lessons/sample.md --wav-only",
-    "chunks": "node ./scripts/python.mjs src/chunk_review.py",
-    "abc": "node ./scripts/python.mjs src/abc_generate.py",
-    "abc:quick": "node ./scripts/python.mjs src/abc_generate.py --quick --wav-only"
+    "format": "uv run --frozen ruff format .",
+    "format:check": "uv run --frozen ruff format --check .",
+    "lint": "uv run --frozen ruff check .",
+    "typecheck": "uv run --frozen python -m compileall -q audio.py server.py src && pyright . --pythonpath .venv/Scripts/python.exe",
+    "test": "uv run --frozen python -m unittest discover -s tests",
+    "generate": "uv run --frozen python audio.py",
+    "generate:sample": "uv run --frozen python audio.py ./lessons/sample.md --wav-only",
+    "chunks": "uv run --frozen python src/chunk_review.py",
+    "abc": "uv run --frozen python src/abc_generate.py",
+    "abc:quick": "uv run --frozen python src/abc_generate.py --quick --wav-only"
   },
   "devDependencies": {
-    "pyright": "^1.1.409"
+    "pyright": "1.1.413"
   }
 }
