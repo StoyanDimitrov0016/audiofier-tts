@@ -47,7 +47,7 @@ export default function GroupForm(props: Props) {
 
       <form.Subscribe
         selector={(state) => [state.canSubmit, state.isSubmitting] as const}
-        children={(state: readonly [boolean, boolean]) => {
+        children={(state) => {
           const [canSubmit] = state;
 
           return (

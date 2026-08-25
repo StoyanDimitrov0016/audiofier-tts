@@ -18,8 +18,6 @@ import soundfile as sf
 from infrastructure.local_runtime import LOCAL_TTS_AI_DIR, PROJECT_ROOT, configure_local_runtime
 
 SAMPLE_RATE = 24000
-FFMPEG_EXECUTABLE_NAME = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
-DEFAULT_FFMPEG_PATH = LOCAL_TTS_AI_DIR / "tools" / FFMPEG_EXECUTABLE_NAME
 KOKORO_MODEL_ID = "hexgrad/Kokoro-82M"
 DEFAULT_KOKORO_MODEL_PATH = LOCAL_TTS_AI_DIR / "models" / "kokoro-82m"
 QWEN_CUSTOM_MODEL_ID = "qwen-0.6b-custom"
@@ -37,7 +35,6 @@ QWEN_CUSTOM_MODEL_ENV_VARS = {
     QWEN_CUSTOM_1_7B_MODEL_ID: ("QWEN_TTS_1_7B_MODEL_PATH",),
 }
 QWEN_CUSTOM_MODEL_IDS = frozenset(QWEN_CUSTOM_HF_MODEL_IDS)
-DEFAULT_QWEN_TOKENIZER_PATH = LOCAL_TTS_AI_DIR / "models" / "qwen3-tts-tokenizer-12hz"
 QWEN_CUSTOM_DEFAULT_SPEAKER = "Ryan"
 QWEN_CUSTOM_SPEAKERS = frozenset({"Ryan", "Aiden"})
 ProgressCallback = Callable[[dict[str, Any]], None]
@@ -352,33 +349,12 @@ def resolve_ffmpeg(ffmpeg_path: str | None) -> str:
             raise FileNotFoundError(f"FFmpeg not found from FFMPEG_PATH: {candidate}")
         return str(candidate)
 
-    if DEFAULT_FFMPEG_PATH.exists():
-        return str(DEFAULT_FFMPEG_PATH)
-
     detected = shutil.which("ffmpeg")
     if detected:
         return detected
 
-    common_candidates = [
-        Path.home() / "Downloads" / "ffmpeg" / "bin" / "ffmpeg.exe",
-        Path.home() / "Downloads" / "ffmpeg.exe",
-        Path("C:/ffmpeg/bin/ffmpeg.exe"),
-        Path("C:/ffmpeg/ffmpeg.exe"),
-    ]
-
-    for candidate in common_candidates:
-        if candidate.exists():
-            return str(candidate)
-
-    downloads_dir = Path.home() / "Downloads"
-    if downloads_dir.exists():
-        for candidate in downloads_dir.glob("**/ffmpeg.exe"):
-            if "bin" in candidate.parts or candidate.parent == downloads_dir:
-                return str(candidate)
-
     raise FileNotFoundError(
-        "FFmpeg was not found. Install it, add it to PATH, set FFMPEG_PATH, "
-        "place it at .local-tts-ai/tools/ffmpeg.exe, or pass --ffmpeg-path."
+        "FFmpeg was not found. Install it with Winget, add it to PATH, set FFMPEG_PATH, or pass --ffmpeg-path."
     )
 
 

@@ -1,10 +1,10 @@
 {
   "name": "audiofier-tts",
   "private": true,
-  "packageManager": "npm@11.12.1",
+  "packageManager": "npm@12.0.2",
   "engines": {
     "node": "24.x",
-    "npm": "11.x"
+    "npm": "12.x"
   },
   "workspaces": [
     "audio-generator",
@@ -14,23 +14,26 @@
     "dev": "turbo dev --env-mode=loose",
     "dev:audio": "turbo dev --filter=audiofier-audio-generator --env-mode=loose",
     "dev:web": "turbo dev --filter=audiofier-web --env-mode=loose",
-    "setup:audio": "npm run setup:venv -w audiofier-audio-generator",
+    "setup": "npm install && npm run setup:audio",
+    "setup:audio": "npm run setup -w audiofier-audio-generator",
+    "doctor": "node ./scripts/doctor.mjs",
     "build": "turbo build",
     "format": "prettier --write . && npm run format -w audiofier-audio-generator",
     "format:check": "prettier --check . && npm run format:check -w audiofier-audio-generator",
     "lint": "eslint . && npm run lint -w audiofier-audio-generator",
     "typecheck": "turbo typecheck",
-    "test": "turbo test"
+    "test": "turbo test",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.4",
+    "@eslint/js": "10.0.1",
     "@rolldown/plugin-babel": "0.2.3",
     "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "9.39.4",
+    "eslint": "10.0.1",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.1.1",
-    "prettier": "3.8.3",
-    "turbo": "^2.9.8",
-    "typescript-eslint": "8.58.2"
+    "prettier": "3.9.6",
+    "turbo": "2.10.11",
+    "typescript-eslint": "8.68.0"
   }
 }
