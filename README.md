@@ -40,13 +40,27 @@ Main runtime flow:
 
 ## Running Locally
 
-Use Node through nvm and npm for this repository. The root `package.json` and `package-lock.json` are the source of truth for JavaScript dependencies.
+Use Node through FNM, npm for JavaScript, and uv for Python. `package-lock.json` and
+`audio-generator/uv.lock` are the dependency sources of truth.
+
+On a new Windows machine, install or repair the required global tools through Winget:
+
+```powershell
+.\scripts\setup-machine.ps1
+```
+
+Restart the terminal so Winget and FNM PATH changes take effect. FNM supports this repository's
+`.nvmrc`; automatic switching can be enabled in the PowerShell profile with:
+
+```powershell
+fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+```
 
 From the repository root:
 
 ```powershell
-npm install
-npm run setup:audio
+npm run setup
+npm run doctor
 npm run dev
 ```
 
@@ -81,12 +95,14 @@ npm run dev
 ## Local Requirements
 
 - Node `24.x`
-- npm `11.x`
-- Python `3.12`
-- FFmpeg for MP3 output
-- SoX for Qwen TTS development
+- npm `12.0.2`
+- uv with CPython `3.12`
+- FFmpeg `9.x` for MP3 output
+- SoX `14.4.x` for Qwen TTS
+- An NVIDIA driver compatible with the locked CUDA 12.8 PyTorch wheels for GPU acceleration
 
-Kokoro English generation uses the spaCy `en_core_web_sm` model through `misaki`; `audio-generator/requirements.txt` installs it explicitly so generation does not try to download it at runtime.
+Kokoro English generation uses the spaCy `en_core_web_sm` model through `misaki`; the uv lock installs
+it explicitly so generation does not download it at runtime.
 
 The Python virtual environment is created at:
 
@@ -94,23 +110,18 @@ The Python virtual environment is created at:
 audio-generator/.venv
 ```
 
-Do not copy this virtual environment between machines or repo locations. If the repo moves, recreate it:
+Do not copy this virtual environment between machines or repository locations. uv recreates it from the
+committed lockfile:
 
 ```powershell
-Remove-Item -LiteralPath .\audio-generator\.venv -Recurse -Force
 npm run setup:audio
 ```
 
-If the Python launcher cannot find Python 3.12, create the venv manually:
+To prove that the lockfile and environment agree without changing either:
 
 ```powershell
-cd .\audio-generator
-& "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe" -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-deactivate
-cd ..
+uv lock --project audio-generator --check
+uv sync --project audio-generator --locked
 ```
 
 For VS Code/Pylance, select:
@@ -128,9 +139,6 @@ Runtime model files and AI caches belong in the project-local ignored folder:
   models/kokoro-82m/
   models/qwen3-tts-0-6b-custom/
   models/qwen3-tts-1-7b-custom/
-  models/qwen3-tts-tokenizer-12hz/
-  tools/ffmpeg.exe
-  tools/sox/sox.exe
   cache/huggingface/
   cache/torch/
 ```
@@ -140,16 +148,15 @@ Runtime model files and AI caches belong in the project-local ignored folder:
 Download models manually from the repository root:
 
 ```powershell
-huggingface-cli download hexgrad/Kokoro-82M --local-dir ".local-tts-ai\models\kokoro-82m"
-huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir ".local-tts-ai\models\qwen3-tts-0-6b-custom"
-huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --local-dir ".local-tts-ai\models\qwen3-tts-1-7b-custom"
-huggingface-cli download Qwen/Qwen3-TTS-Tokenizer-12Hz --local-dir ".local-tts-ai\models\qwen3-tts-tokenizer-12hz"
+uv run --project audio-generator --frozen hf download hexgrad/Kokoro-82M --local-dir ".local-tts-ai\models\kokoro-82m"
+uv run --project audio-generator --frozen hf download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir ".local-tts-ai\models\qwen3-tts-0-6b-custom"
+uv run --project audio-generator --frozen hf download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --local-dir ".local-tts-ai\models\qwen3-tts-1-7b-custom"
 ```
 
 If Hugging Face authentication is needed:
 
 ```powershell
-huggingface-cli login
+uv run --project audio-generator --frozen hf auth login
 ```
 
 The audio generator defaults caches into `.local-tts-ai/cache`. You can override local paths before starting the API:
@@ -158,27 +165,15 @@ The audio generator defaults caches into `.local-tts-ai/cache`. You can override
 $env:KOKORO_MODEL_PATH = ".local-tts-ai\models\kokoro-82m"
 $env:QWEN_TTS_MODEL_PATH = ".local-tts-ai\models\qwen3-tts-0-6b-custom"
 $env:QWEN_TTS_1_7B_MODEL_PATH = ".local-tts-ai\models\qwen3-tts-1-7b-custom"
-$env:QWEN_TTS_TOKENIZER_PATH = ".local-tts-ai\models\qwen3-tts-tokenizer-12hz"
-$env:FFMPEG_PATH = ".local-tts-ai\tools\ffmpeg.exe"
 $env:HF_HOME = ".local-tts-ai\cache\huggingface"
 $env:TORCH_HOME = ".local-tts-ai\cache\torch"
 ```
 
 Kokoro remains the default TTS model. Qwen is used only when the request selects model `qwen-0.6b-custom` or `qwen-1.7b-custom` with supported speakers `Ryan` or `Aiden`. `QWEN_TTS_MODEL_PATH` is the compatibility override for the 0.6B model; use `QWEN_TTS_0_6B_MODEL_PATH` or `QWEN_TTS_1_7B_MODEL_PATH` when you want model-specific overrides.
 
-For MP3 output, install FFmpeg and either add it to PATH or keep it project-local at:
-
-```text
-.local-tts-ai/tools/ffmpeg.exe
-```
-
-Qwen TTS also expects SoX to be available as a command-line tool. Keep it project-local at:
-
-```text
-.local-tts-ai/tools/sox/sox.exe
-```
-
-The audio generator prepends `.local-tts-ai/tools` and `.local-tts-ai/tools/sox` to `PATH` at startup. If your local FFmpeg is somewhere else, set `FFMPEG_PATH` to the executable path before starting the audio generator.
+FFmpeg and SoX are machine tools managed through Winget and resolved from `PATH`. `FFMPEG_PATH` and the
+CLI `--ffmpeg-path` remain available for an explicit override. Qwen CustomVoice model directories already
+contain their required speech tokenizer; a separate tokenizer download is not used by this application.
 
 `flash-attn` is an optional Qwen acceleration dependency. Install it only when a prebuilt wheel matches the active Python, PyTorch, CUDA, and Windows platform versions. A source build needs the CUDA toolkit and compiler setup; it is intentionally not required for normal setup.
 
