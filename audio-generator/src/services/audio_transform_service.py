@@ -4,23 +4,13 @@ from pathlib import Path
 
 import numpy as np
 
-from infrastructure.audio_runtime import SAMPLE_RATE, convert_wav_to_mp3, resolve_ffmpeg
+from infrastructure.audio_files import SAMPLE_RATE, convert_wav_to_mp3, resolve_ffmpeg
+from infrastructure.audio_files import merge_wavs as merge_audio_wavs
 
 
 class AudioTransformService:
     def merge_wavs(self, wavs: list[np.ndarray], pause_ms: int = 300, sample_rate: int = SAMPLE_RATE) -> np.ndarray:
-        if not wavs:
-            raise ValueError("No audio was generated.")
-
-        pause = np.zeros(int(sample_rate * (pause_ms / 1000.0)), dtype=np.float32)
-        parts: list[np.ndarray] = []
-
-        for index, wav in enumerate(wavs):
-            parts.append(wav)
-            if index < len(wavs) - 1 and pause_ms > 0:
-                parts.append(pause)
-
-        return np.concatenate(parts)
+        return merge_audio_wavs(wavs, pause_ms=pause_ms, sample_rate=sample_rate)
 
     def convert_wav_to_mp3(
         self,

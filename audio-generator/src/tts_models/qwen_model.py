@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from domain.models import ProgressCallback, SynthesisOutput, TtsModelDescriptor
-from infrastructure.audio_runtime import (
+from infrastructure.qwen_runtime import (
     QWEN_CUSTOM_1_7B_MODEL_ID,
     QWEN_CUSTOM_DEFAULT_SPEAKER,
     QWEN_CUSTOM_MODEL_ID,
     resolve_qwen_custom_model_source,
-    synthesize_qwen_custom_chunks,
+    resolve_qwen_language,
+    synthesize_qwen_custom,
 )
 from services.generation import GenerationOptions
 from tts_models.base import TtsModel
@@ -19,7 +20,15 @@ class QwenCustomModel(TtsModel):
             name=name,
             default_voice=QWEN_CUSTOM_DEFAULT_SPEAKER,
             supports_instruct=supports_instruct,
+            max_chunk_chars=1200,
+            min_chunk_chars=220,
+            pack_chunks=True,
         )
+
+    def validate_options(self, options: GenerationOptions) -> None:
+        super().validate_options(options)
+        if options.voice not in {"Aiden", "Ryan"}:
+            raise ValueError("Unsupported Qwen speaker: " + options.voice + ". Supported speakers: Aiden, Ryan.")
 
     def synthesize(
         self,
@@ -28,11 +37,12 @@ class QwenCustomModel(TtsModel):
         progress_callback: ProgressCallback | None = None,
     ) -> SynthesisOutput:
         instruct = options.instruct if self.descriptor.supports_instruct else None
-        wavs, sample_rate = synthesize_qwen_custom_chunks(
+        wavs, sample_rate = synthesize_qwen_custom(
             chunks=chunks,
             speaker=options.voice,
             model_id=self.descriptor.id,
             instruct=instruct,
+            language=resolve_qwen_language(options.lang_code),
             progress_callback=progress_callback,
         )
         return SynthesisOutput(

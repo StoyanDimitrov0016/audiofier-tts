@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from domain.models import ProgressCallback, SynthesisOutput, TtsModelDescriptor
-from infrastructure.audio_runtime import SAMPLE_RATE, resolve_kokoro_model_source, synthesize_chunks
+from infrastructure.audio_files import SAMPLE_RATE
+from infrastructure.kokoro_runtime import resolve_kokoro_model_source, synthesize_kokoro
 from services.generation import DEFAULT_REPO_ID, DEFAULT_VOICE, GenerationOptions
 from tts_models.base import TtsModel
 
@@ -12,6 +13,9 @@ class KokoroModel(TtsModel):
         name="Kokoro",
         default_voice=DEFAULT_VOICE,
         supports_instruct=False,
+        max_chunk_chars=1200,
+        min_chunk_chars=140,
+        pack_chunks=False,
     )
 
     def synthesize(
@@ -20,7 +24,7 @@ class KokoroModel(TtsModel):
         options: GenerationOptions,
         progress_callback: ProgressCallback | None = None,
     ) -> SynthesisOutput:
-        wavs = synthesize_chunks(
+        wavs = synthesize_kokoro(
             chunks=chunks,
             voice=options.voice,
             speed=options.speed,

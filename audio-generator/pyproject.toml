@@ -21,6 +21,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx2>=2.12.0",
+    "psutil>=7.2.2",
     "ruff",
 ]
 
@@ -43,9 +44,29 @@ target-version = "py312"
 exclude = [".venv", "output"]
 
 [tool.ruff.lint]
-select = ["B", "E", "F", "I", "UP"]
+select = [
+  "A",      # builtins and import shadowing
+  "B",      # bugbear correctness checks
+  "C4",     # comprehensions
+  "E",      # pycodestyle errors
+  "F",      # pyflakes correctness checks
+  "I",      # import sorting
+  "ISC",    # implicit string concatenation
+  "PIE",    # misc. likely-error checks
+  "RET",    # return consistency
+  "RUF",    # Ruff-native correctness and hygiene checks
+  "SIM",    # simplification opportunities
+  "TID",    # tidy imports
+  "UP",     # supported Python-modernization rules
+  "PTH",    # pathlib over os.path
+]
 
 [tool.ruff.lint.per-file-ignores]
 "audio.py" = ["E402"]
 "server.py" = ["E402"]
 "tests/test_audio.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

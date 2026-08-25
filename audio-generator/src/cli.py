@@ -66,7 +66,20 @@ def main() -> None:
     from services.text_processing import make_chunks, prepare_text_for_tts
 
     cleaned = prepare_text_for_tts(raw, input_path.suffix)
-    chunks = make_chunks(cleaned, max_chars=options.max_chars) if cleaned else []
+    chunks = []
+    if cleaned:
+        from services.generation import (
+            max_chunk_chars_for_model,
+            min_chunk_chars_for_model,
+            pack_chunks_for_model,
+        )
+
+        chunks = make_chunks(
+            cleaned,
+            max_chars=max_chunk_chars_for_model(options.model_id, options.max_chars),
+            min_chunk_chars=min_chunk_chars_for_model(options.model_id),
+            pack_to_max=pack_chunks_for_model(options.model_id),
+        )
     lesson_output_dir = build_output_dir(options.output_dir, input_path)
 
     print(f"Input: {input_path}")
