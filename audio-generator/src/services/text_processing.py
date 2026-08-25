@@ -9,8 +9,7 @@ def collapse_hard_wrapped_lines(text: str) -> str:
     text = re.sub(r" *\n *", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
-    text = re.sub(r" {2,}", " ", text)
-    return text
+    return re.sub(r" {2,}", " ", text)
 
 
 def strip_markdown(text: str) -> str:
