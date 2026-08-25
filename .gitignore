@@ -39,17 +39,19 @@ output/
 
 # -------------------------------------------------------------------
 # Local storage
-# Keep storage/audio/.gitkeep and storage/lessons/.gitkeep, but ignore generated/private files.
+# Keep only layout markers. Lesson source and generated media are private local data.
 # -------------------------------------------------------------------
 /storage/*
-!/storage/audio/
-!/storage/lessons/
+!/storage/generated/
+!/storage/markdowns/
 
-/storage/audio/*
-!/storage/audio/.gitkeep
+/storage/generated/*
+!/storage/generated/.gitkeep
 
-/storage/lessons/*
-!/storage/lessons/.gitkeep
+/storage/markdowns/*
+!/storage/markdowns/groups/
+/storage/markdowns/groups/*
+!/storage/markdowns/groups/.gitkeep
 
 # -------------------------------------------------------------------
 # Local databases / job state
