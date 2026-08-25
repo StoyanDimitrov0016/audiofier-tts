@@ -97,6 +97,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "httpx2" },
+    { name = "psutil" },
     { name = "ruff" },
 ]
 
@@ -119,6 +120,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx2", specifier = ">=2.12.0" },
+    { name = "psutil", specifier = ">=7.2.2" },
     { name = "ruff" },
 ]
 

@@ -2,6 +2,7 @@
   "name": "audiofier-audio-generator",
   "private": true,
   "scripts": {
+    "benchmark": "uv run --frozen python src/benchmark_tts.py",
     "setup": "uv sync --locked",
     "dev": "uv run --frozen python server.py",
     "start": "uv run --frozen python server.py",
