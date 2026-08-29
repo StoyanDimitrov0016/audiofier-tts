@@ -1,0 +1,16 @@
+export const LESSON_TITLE_MAX_LENGTH = 240;
+export const MIN_LESSON_ORDER = 1;
+export const DEFAULT_AUDIO_MODEL_ID = "kokoro";
+export const AUDIO_MODEL_ID_MAX_LENGTH = 40;
+export const AUDIO_VOICE_LANGUAGE_FILTER = "English";
+export const AUDIO_GENERATION_POLL_INTERVAL_MS = 800;
+export const AUDIO_GENERATION_TIMEOUT_MS = 600_000;
+export const AUDIO_GENERATION_INITIAL_PROGRESS_PERCENT = 8;
+export const AUDIO_SPEED_MIN = 0.25;
+export const AUDIO_SPEED_MAX = 2;
+export const AUDIO_SPEED_STEP = 0.05;
+export const DEFAULT_AUDIO_SPEED = 1;
+export const DEFAULT_LESSON_MARKDOWN = "# New Lesson\n\n";
+export const LESSON_ID_CONSTRAINT = "lessons_pkey";
+export const LESSON_QUERY_STALE_TIME_MS = 30_000;
+export const AUDIO_CATALOG_STALE_TIME_MS = 60_000;

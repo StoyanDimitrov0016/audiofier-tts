@@ -1,0 +1,6 @@
+export const DEFAULT_AUDIO_GENERATOR_URL = "http://127.0.0.1:8765";
+export const MARKDOWN_TEXT_SUFFIX = ".md";
+export const PLAIN_TEXT_SUFFIX = ".txt";
+export const SUPPORTED_TEXT_SUFFIXES = [MARKDOWN_TEXT_SUFFIX, PLAIN_TEXT_SUFFIX] as const;
+export const AUDIO_IDENTIFIER_MAX_LENGTH = 160;
+export const FORMATTED_DURATION_MAX_LENGTH = 80;
