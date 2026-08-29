@@ -35,13 +35,19 @@ export default function GroupForm(props: Props) {
     >
       <form.AppField
         name="title"
-        children={(field) => <field.TextField label="Group title" placeholder="Book or course title" />}
+        children={(field) => (
+          <field.TextField label="Group title" placeholder="Book or course title" />
+        )}
       />
 
       <form.AppField
         name="description"
         children={(field) => (
-          <field.TextareaField label="Description" className="min-h-24 resize-y" placeholder="Optional" />
+          <field.TextareaField
+            label="Description"
+            className="min-h-24 resize-y"
+            placeholder="Optional"
+          />
         )}
       />
 

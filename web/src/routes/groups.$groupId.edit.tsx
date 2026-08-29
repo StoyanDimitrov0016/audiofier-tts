@@ -95,7 +95,13 @@ function EditGroupPage() {
           <p className="text-sm font-bold uppercase text-primary">Edit group</p>
           <h1 className="mt-1 text-4xl font-semibold tracking-tight md:text-6xl">{group.title}</h1>
         </div>
-        <Button className="w-fit" variant="destructive" type="button" onClick={removeGroup} disabled={isDeleting}>
+        <Button
+          className="w-fit"
+          variant="destructive"
+          type="button"
+          onClick={removeGroup}
+          disabled={isDeleting}
+        >
           {isDeleting ? "Deleting..." : "Delete group"}
         </Button>
       </header>

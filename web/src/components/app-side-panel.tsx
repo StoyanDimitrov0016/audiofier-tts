@@ -81,14 +81,22 @@ export default function AppSidePanel({ library }: Props) {
                           style={{ color: "var(--muted-foreground)" }}
                           to="/groups/$groupId"
                           params={{ groupId: group.id }}
-                          activeProps={{ style: { color: "var(--foreground)", background: "rgba(255,255,255,0.05)" } }}
+                          activeProps={{
+                            style: {
+                              color: "var(--foreground)",
+                              background: "rgba(255,255,255,0.05)",
+                            },
+                          }}
                           activeOptions={{ exact: true }}
                         >
                           {group.title}
                         </Link>
 
                         {chapters.length === 0 ? (
-                          <p className="px-2 py-1.5 text-xs" style={{ color: "var(--muted-foreground)", opacity: 0.6 }}>
+                          <p
+                            className="px-2 py-1.5 text-xs"
+                            style={{ color: "var(--muted-foreground)", opacity: 0.6 }}
+                          >
                             No lessons yet.
                           </p>
                         ) : (

@@ -1,9 +1,19 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import type { AudioGroup, Chapter, ChapterSummary, GeneratedAudio, LessonLibrary } from "../../lib/lesson-types";
+import type {
+  AudioGroup,
+  Chapter,
+  ChapterSummary,
+  GeneratedAudio,
+  LessonLibrary,
+} from "../../lib/lesson-types";
 import type { GenerateAudioResult } from "../../lib/audio-types";
-import { AudioGroupSchema, ChapterMetaSchema, GeneratedAudioSchema } from "../../lib/lesson-schemas";
+import {
+  AudioGroupSchema,
+  ChapterMetaSchema,
+  GeneratedAudioSchema,
+} from "../../lib/lesson-schemas";
 import { storagePaths } from "./paths";
 import { ensureDir, nowIso, pathExists, readJson, uniqueId, writeJson } from "../lib/persistence";
 
@@ -45,7 +55,9 @@ function generatedMetadataPath(groupId: string, chapterId: string) {
 }
 
 function resolveGeneratedOutputDir(outputDir: string) {
-  return path.isAbsolute(outputDir) ? outputDir : path.resolve(storagePaths.repositoryRoot, outputDir);
+  return path.isAbsolute(outputDir)
+    ? outputDir
+    : path.resolve(storagePaths.repositoryRoot, outputDir);
 }
 
 async function removeGeneratedChapterArtifacts(groupId: string, chapterId: string) {
@@ -59,7 +71,11 @@ async function removeGeneratedChapterArtifacts(groupId: string, chapterId: strin
 
   await Promise.all(
     entries
-      .filter((entry) => entry.isDirectory() && (entry.name === chapterId || entry.name.startsWith(`${chapterId}-`)))
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          (entry.name === chapterId || entry.name.startsWith(`${chapterId}-`))
+      )
       .map((entry) => fs.rm(path.join(groupDirPath, entry.name), { recursive: true, force: true }))
   );
 }
@@ -103,7 +119,10 @@ async function assertGroupExists(groupId: string) {
   return resolvedGroupId;
 }
 
-async function readGeneratedAudio(groupId: string, chapterId: string): Promise<GeneratedAudio | null> {
+async function readGeneratedAudio(
+  groupId: string,
+  chapterId: string
+): Promise<GeneratedAudio | null> {
   const filePath = generatedMetadataPath(groupId, chapterId);
 
   if (!(await pathExists(filePath))) {
@@ -158,7 +177,10 @@ async function listChapters(groupId: string): Promise<ChapterSummary[]> {
     entries
       .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
       .map(async (entry) => {
-        const meta = await readJson(path.join(chaptersDir(resolvedGroupId), entry.name), ChapterMetaSchema);
+        const meta = await readJson(
+          path.join(chaptersDir(resolvedGroupId), entry.name),
+          ChapterMetaSchema
+        );
         const chapter = {
           ...meta,
           groupId: resolvedGroupId,
@@ -171,7 +193,9 @@ async function listChapters(groupId: string): Promise<ChapterSummary[]> {
       })
   );
 
-  return chapters.sort((left, right) => left.order - right.order || left.title.localeCompare(right.title));
+  return chapters.sort(
+    (left, right) => left.order - right.order || left.title.localeCompare(right.title)
+  );
 }
 
 async function getLibrary(): Promise<LessonLibrary> {
@@ -225,7 +249,11 @@ async function createGroup(input: { title: string; description?: string }): Prom
   return group;
 }
 
-async function updateGroup(input: { groupId: string; title: string; description?: string }): Promise<AudioGroup> {
+async function updateGroup(input: {
+  groupId: string;
+  title: string;
+  description?: string;
+}): Promise<AudioGroup> {
   const resolvedGroupId = await assertGroupExists(input.groupId);
   const existing = await getGroup(resolvedGroupId);
   const group: AudioGroup = {
@@ -288,7 +316,9 @@ async function createChapter(input: {
   const resolvedGroupId = await assertGroupExists(input.groupId);
 
   const existingChapters = await listChapters(resolvedGroupId);
-  const id = await uniqueId(input.title, async (candidate) => pathExists(chapterMetaPath(resolvedGroupId, candidate)));
+  const id = await uniqueId(input.title, async (candidate) =>
+    pathExists(chapterMetaPath(resolvedGroupId, candidate))
+  );
   const timestamp = nowIso();
   const meta: ChapterMeta = {
     id,
@@ -341,7 +371,9 @@ async function updateChapter(input: {
     ...meta,
     markdown: input.markdown,
     markdownPath: markdownFilePath,
-    generatedAudio: markdownChanged ? null : await readGeneratedAudio(resolvedGroupId, input.chapterId),
+    generatedAudio: markdownChanged
+      ? null
+      : await readGeneratedAudio(resolvedGroupId, input.chapterId),
   };
 }
 
@@ -378,7 +410,10 @@ async function saveGenerationResult(input: {
   };
 
   await writeJson(generatedMetadataPath(resolvedGroupId, input.chapterId), generatedAudio);
-  await writeJson(path.join(resolveGeneratedOutputDir(input.result.lessonOutputDir), "metadata.json"), generatedAudio);
+  await writeJson(
+    path.join(resolveGeneratedOutputDir(input.result.lessonOutputDir), "metadata.json"),
+    generatedAudio
+  );
   return generatedAudio;
 }
 

@@ -40,15 +40,24 @@ export default function LessonEditor(props: Props) {
       }}
     >
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
-        <form.AppField name="title" children={(field) => <field.TextField label="Lesson title" />} />
-        <form.AppField name="order" children={(field) => <field.NumberField label="Order" min={1} step={1} />} />
+        <form.AppField
+          name="title"
+          children={(field) => <field.TextField label="Lesson title" />}
+        />
+        <form.AppField
+          name="order"
+          children={(field) => <field.NumberField label="Order" min={1} step={1} />}
+        />
       </div>
 
       <form.AppField
         name="markdown"
         children={(field) => (
           <div className="grid gap-3">
-            <field.TextareaField label="Markdown" className="min-h-[520px] resize-y leading-relaxed" />
+            <field.TextareaField
+              label="Markdown"
+              className="min-h-[520px] resize-y leading-relaxed"
+            />
           </div>
         )}
       />
@@ -62,7 +71,9 @@ export default function LessonEditor(props: Props) {
           return (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-muted-foreground">Estimated duration: {estimatedAudio.duration}</p>
+                <p className="text-sm text-muted-foreground">
+                  Estimated duration: {estimatedAudio.duration}
+                </p>
                 <div className="flex flex-wrap items-center justify-end gap-3">
                   <Button
                     className="w-fit"
@@ -72,7 +83,11 @@ export default function LessonEditor(props: Props) {
                   >
                     {isPreviewVisible ? "Hide preview" : "Preview"}
                   </Button>
-                  <Button className="w-fit" type="submit" disabled={!canSubmit || props.isSubmitting}>
+                  <Button
+                    className="w-fit"
+                    type="submit"
+                    disabled={!canSubmit || props.isSubmitting}
+                  >
                     {props.isSubmitting ? props.pendingLabel : props.submitLabel}
                   </Button>
                 </div>
