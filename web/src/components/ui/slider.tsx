@@ -2,8 +2,15 @@ import { Slider as SliderPrimitive } from "@base-ui/react/slider";
 
 import { cn } from "@/lib/utils";
 
-function Slider({ className, defaultValue, value, min = 0, max = 100, ...props }: SliderPrimitive.Root.Props) {
-  const _values = Array.isArray(value) ? value : Array.isArray(defaultValue) ? defaultValue : [min, max];
+function Slider({
+  className,
+  defaultValue,
+  value,
+  min = 0,
+  max = 100,
+  ...props
+}: SliderPrimitive.Root.Props) {
+  const values = getSliderValues(value, defaultValue, min, max);
 
   return (
     <SliderPrimitive.Root
@@ -26,7 +33,7 @@ function Slider({ className, defaultValue, value, min = 0, max = 100, ...props }
             className="bg-primary select-none data-horizontal:h-full data-vertical:w-full"
           />
         </SliderPrimitive.Track>
-        {Array.from({ length: _values.length }, (_, index) => (
+        {Array.from({ length: values.length }, (_, index) => (
           <SliderPrimitive.Thumb
             data-slot="slider-thumb"
             key={index}
@@ -36,6 +43,25 @@ function Slider({ className, defaultValue, value, min = 0, max = 100, ...props }
       </SliderPrimitive.Control>
     </SliderPrimitive.Root>
   );
+}
+
+function getSliderValues(
+  value: SliderPrimitive.Root.Props["value"],
+  defaultValue: SliderPrimitive.Root.Props["defaultValue"],
+  min: number,
+  max: number
+) {
+  if (Array.isArray(value)) {
+    // Base UI currently publishes the value as any although Slider values are numeric arrays.
+    // oxlint-disable-next-line typescript/no-unsafe-return
+    return value;
+  }
+  if (Array.isArray(defaultValue)) {
+    // Base UI currently publishes the default value as any although Slider values are numeric arrays.
+    // oxlint-disable-next-line typescript/no-unsafe-return
+    return defaultValue;
+  }
+  return [min, max];
 }
 
 export { Slider };

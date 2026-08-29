@@ -10,7 +10,9 @@ export default function RouteError(props: ErrorComponentProps) {
       <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">Could Not Load</h1>
       <Alert variant="destructive">
         <AlertTitle>Something went wrong.</AlertTitle>
-        <AlertDescription>{props.error.message || "Refresh the page and try again."}</AlertDescription>
+        <AlertDescription>
+          {props.error.message || "Refresh the page and try again."}
+        </AlertDescription>
       </Alert>
       <Button className="w-fit" variant="outline" type="button" onClick={props.reset}>
         Try again
