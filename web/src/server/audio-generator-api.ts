@@ -25,12 +25,8 @@ async function readAudioResponse<T extends object>(
   response: Response,
   schema: z.ZodType<T>
 ): Promise<T> {
-<<<<<<< HEAD
-  const payload = await response.json();
-=======
   // The Fetch API types response.json() as any; schemas below establish the boundary.
   const payload: unknown = await response.json();
->>>>>>> 2983fa7 (refactor: isolate audio and storage providers)
   const apiError = AudioGeneratorApiErrorSchema.safeParse(payload);
 
   if (!response.ok) {
