@@ -1,0 +1,4 @@
+export const COLLECTION_TITLE_MAX_LENGTH = 200;
+export const COLLECTION_DESCRIPTION_MAX_LENGTH = 2_000;
+export const COLLECTION_ID_CONSTRAINT = "collections_pkey";
+export const COLLECTION_QUERY_STALE_TIME_MS = 30_000;
