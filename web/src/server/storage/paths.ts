@@ -1,7 +1,11 @@
 import path from "node:path";
 
+const WEB_WORKSPACE_DIRECTORY = "web";
+const DEFAULT_STORAGE_DIRECTORY = "storage";
+
 const cwd = process.cwd();
-const repositoryRoot = path.basename(cwd) === "web" ? path.resolve(cwd, "..") : cwd;
+const repositoryRoot =
+  path.basename(cwd) === WEB_WORKSPACE_DIRECTORY ? path.resolve(cwd, "..") : cwd;
 
 function resolveFromRepositoryRoot(value: string | undefined, fallback: string) {
   if (!value) {
@@ -13,5 +17,8 @@ function resolveFromRepositoryRoot(value: string | undefined, fallback: string) 
 
 export const storagePaths = {
   repositoryRoot,
-  storageRoot: resolveFromRepositoryRoot(process.env.AUDIOFIER_STORAGE_DIR, "storage"),
+  storageRoot: resolveFromRepositoryRoot(
+    process.env.AUDIOFIER_STORAGE_DIR,
+    DEFAULT_STORAGE_DIRECTORY
+  ),
 };
