@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import GroupForm from "../components/group-form";
+import CollectionForm from "../features/collections/web/components/collection-form";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { buttonVariants } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import { createAudioGroup } from "../server/lessons";
-import type { GroupFormValues } from "../lib/lesson-schemas";
+import type { CollectionFormValues } from "../features/collections/collections.schemas";
+import { createCollectionMutationOptions } from "../features/collections/web/queries/collections.queries";
 
 export const Route = createFileRoute("/groups/new")({
   errorComponent: RouteError,
@@ -18,53 +18,48 @@ export const Route = createFileRoute("/groups/new")({
 
 function NewGroupPage() {
   const navigate = useNavigate();
-  const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const createCollection = useMutation(createCollectionMutationOptions(queryClient));
 
-  async function submitGroup(values: GroupFormValues) {
-    setIsSubmitting(true);
-    setError(null);
-
+  async function submitGroup(values: CollectionFormValues) {
     try {
-      const created = await createAudioGroup({ data: values });
-      await router.invalidate({ sync: true });
+      const created = await createCollection.mutateAsync(values);
       await navigate({
         to: "/groups/$groupId",
-        params: { groupId: created.group.id },
+        params: { groupId: created.collection.id },
       });
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not create group.");
-    } finally {
-      setIsSubmitting(false);
+    } catch {
+      // The mutation exposes its error below while preserving the submitted values.
     }
   }
 
   return (
     <section className="mx-auto grid w-full max-w-3xl gap-5 pt-2">
-      <Link className={buttonVariants({ variant: "link", className: "w-fit px-0" })} to="/groups">
-        Back to groups
+      <Link className={buttonVariants({ variant: "link", className: "w-fit px-0" })} to="/">
+        Back to catalog
       </Link>
       <header>
-        <p className="text-sm font-bold uppercase text-primary">New group</p>
-        <h1 className="mt-1 text-4xl font-semibold tracking-tight md:text-6xl">Create Group</h1>
+        <p className="text-sm font-bold uppercase text-primary">New collection</p>
+        <h1 className="mt-1 text-4xl font-semibold tracking-tight md:text-6xl">
+          Create Collection
+        </h1>
       </header>
 
       <Card className="rounded-lg">
         <CardContent>
-          <GroupForm
+          <CollectionForm
             initialValues={{ title: "", description: "" }}
-            submitLabel="Create group"
+            submitLabel="Create collection"
             pendingLabel="Creating..."
-            isSubmitting={isSubmitting}
+            isSubmitting={createCollection.isPending}
             onSubmit={submitGroup}
           />
         </CardContent>
       </Card>
 
-      {error ? (
+      {createCollection.error ? (
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{createCollection.error.message}</AlertDescription>
         </Alert>
       ) : null}
     </section>

@@ -1,72 +1,46 @@
-import { useState } from "react";
-import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
+import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
-import LessonEditor from "../components/lesson-editor";
+import LessonEditor from "../features/lessons/web/components/lesson-editor";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
-import RoutePending from "../components/route-pending";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { buttonVariants } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import { createChapter, getAudioGroupDetails } from "../server/lessons";
-import type { LessonEditorValues } from "../lib/lesson-schemas";
+import { collectionDetailsQueryOptions } from "../features/collections/web/queries/collections.queries";
+import { createLessonMutationOptions } from "../features/lessons/web/queries/lessons.queries";
+import { DEFAULT_LESSON_MARKDOWN } from "../features/lessons/lessons.constants";
+import type { LessonEditorValues } from "../features/lessons/lessons.schemas";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/new")({
-  loader: async ({ params }) => {
-    const details = await getAudioGroupDetails({
-      data: {
-        groupId: params.groupId,
-      },
-    });
-
-    if (!details) {
-      throw notFound({
-        data: {
-          message: "That audio group does not exist.",
-        },
-      });
-    }
-
-    return details;
-  },
-  pendingComponent: RoutePending,
   errorComponent: RouteError,
   notFoundComponent: RouteNotFound,
   component: NewLessonPage,
 });
 
 function NewLessonPage() {
-  const { group, chapters } = Route.useLoaderData();
+  const { groupId } = Route.useParams();
+  const { data: details } = useSuspenseQuery(collectionDetailsQueryOptions(groupId));
+  if (!details) {
+    throw notFound({ data: { message: "That collection does not exist." } });
+  }
+  const { collection, lessons } = details;
   const navigate = useNavigate();
-  const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const createLesson = useMutation(createLessonMutationOptions(queryClient));
 
   async function submitLesson(values: LessonEditorValues) {
-    setIsSubmitting(true);
-    setError(null);
-
     try {
-      const created = await createChapter({
-        data: {
-          groupId: group.id,
-          title: values.title,
-          order: values.order,
-          markdown: values.markdown,
-        },
-      });
-      await router.invalidate({ sync: true });
+      const created = await createLesson.mutateAsync({ collectionId: collection.id, values });
       await navigate({
         to: "/groups/$groupId/lessons/$chapterId",
         params: {
-          groupId: group.id,
-          chapterId: created.chapter.id,
+          groupId: collection.id,
+          chapterId: created.lesson.id,
         },
       });
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not create lesson.");
-    } finally {
-      setIsSubmitting(false);
+    } catch {
+      // The mutation exposes its error below while preserving the draft.
     }
   }
 
@@ -75,14 +49,14 @@ function NewLessonPage() {
       <Link
         className={buttonVariants({ variant: "link", className: "w-fit px-0" })}
         to="/groups/$groupId"
-        params={{ groupId: group.id }}
+        params={{ groupId: collection.id }}
       >
-        Back to group
+        Back to collection
       </Link>
       <header>
         <p className="text-sm font-bold uppercase text-primary">New lesson</p>
         <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
-          {group.title}
+          {collection.title}
         </h1>
       </header>
 
@@ -91,20 +65,21 @@ function NewLessonPage() {
           <LessonEditor
             initialValues={{
               title: "",
-              order: chapters.length + 1,
-              markdown: "# New Lesson\n\n",
+              order: lessons.length + 1,
+              markdown: DEFAULT_LESSON_MARKDOWN,
             }}
             submitLabel="Create lesson"
             pendingLabel="Creating..."
-            isSubmitting={isSubmitting}
+            isSubmitting={createLesson.isPending}
+            maxOrder={lessons.length + 1}
             onSubmit={submitLesson}
           />
         </CardContent>
       </Card>
 
-      {error ? (
+      {createLesson.error ? (
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{createLesson.error.message}</AlertDescription>
         </Alert>
       ) : null}
     </section>
