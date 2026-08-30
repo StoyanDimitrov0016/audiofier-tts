@@ -10,7 +10,7 @@ marked.use({
     link(token) {
       const href = sanitizeUrl(token.href);
       const title = token.title ? ` title="${escapeHtml(token.title)}"` : "";
-      const text = typeof token.text === "string" ? token.text : "";
+      const text = this.parser.parseInline(token.tokens);
 
       if (!href) {
         return text;
@@ -74,10 +74,11 @@ interface Props {
   markdown: string;
 }
 
+/* oxlint-disable react/no-danger -- marked output is sanitized by the renderer above. */
 export default function MarkdownPreview(props: Props) {
   const html = marked.parse(props.markdown || "_No markdown yet._", {
     async: false,
-  }) as string;
+  });
 
   return (
     <article
@@ -86,3 +87,4 @@ export default function MarkdownPreview(props: Props) {
     />
   );
 }
+/* oxlint-enable react/no-danger */

@@ -1,16 +1,17 @@
 import { useState } from "react";
 
-import { useAppForm } from "./app-form";
+import { useAppForm } from "@/components/app-form";
 import MarkdownPreview from "./markdown-preview";
-import { Button } from "./ui/button";
-import { getEstimatedAudioDetails } from "../lib/audio-estimate";
-import { LessonEditorSchema, type LessonEditorValues } from "../lib/lesson-schemas";
+import { Button } from "@/components/ui/button";
+import { LessonEditorSchema, type LessonEditorValues } from "@/features/lessons/lessons.schemas";
+import { getEstimatedAudioDetails } from "@/lib/audio-estimate";
 
 interface Props {
   initialValues: LessonEditorValues;
   submitLabel: string;
   pendingLabel: string;
   isSubmitting: boolean;
+  maxOrder: number;
   onSubmit: (values: LessonEditorValues) => Promise<void>;
 }
 
@@ -40,19 +41,16 @@ export default function LessonEditor(props: Props) {
       }}
     >
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
-        <form.AppField
-          name="title"
-          children={(field) => <field.TextField label="Lesson title" />}
-        />
-        <form.AppField
-          name="order"
-          children={(field) => <field.NumberField label="Order" min={1} step={1} />}
-        />
+        <form.AppField name="title">
+          {(field) => <field.TextField label="Lesson title" />}
+        </form.AppField>
+        <form.AppField name="order">
+          {(field) => <field.NumberField label="Order" min={1} max={props.maxOrder} step={1} />}
+        </form.AppField>
       </div>
 
-      <form.AppField
-        name="markdown"
-        children={(field) => (
+      <form.AppField name="markdown">
+        {(field) => (
           <div className="grid gap-3">
             <field.TextareaField
               label="Markdown"
@@ -60,11 +58,10 @@ export default function LessonEditor(props: Props) {
             />
           </div>
         )}
-      />
+      </form.AppField>
 
-      <form.Subscribe
-        selector={(state) => [state.canSubmit, state.values.markdown] as const}
-        children={(state) => {
+      <form.Subscribe selector={(state) => [state.canSubmit, state.values.markdown] as const}>
+        {(state) => {
           const [canSubmit, markdown] = state;
           const estimatedAudio = getEstimatedAudioDetails(markdown);
 
@@ -104,7 +101,7 @@ export default function LessonEditor(props: Props) {
             </>
           );
         }}
-      />
+      </form.Subscribe>
     </form>
   );
 }
