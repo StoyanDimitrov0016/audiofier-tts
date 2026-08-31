@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { Link, createFileRoute, notFound, useRouter } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, createFileRoute, notFound } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
-import MarkdownPreview from "../components/markdown-preview";
+import MarkdownPreview from "../features/lessons/web/components/markdown-preview";
 import RouteError from "../components/route-error";
 import RouteNotFound from "../components/route-not-found";
-import RoutePending from "../components/route-pending";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button, buttonVariants } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -20,17 +20,26 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Slider } from "../components/ui/slider";
-import { getAudioGenerationJob } from "../lib/audio-generator-client";
-import type { AudioVoice, GenerateAudioProgress } from "../lib/audio-types";
+import type { AudioVoice } from "../lib/audio-types";
+import { collectionDetailsQueryOptions } from "../features/collections/web/queries/collections.queries";
 import {
-  getAudioGroupDetails,
-  getAvailableAudioVoices,
-  getChapterDetails,
-  saveChapterAudioGenerationResult,
-  startChapterAudioGeneration,
-} from "../server/lessons";
+  audioCatalogQueryOptions,
+  audioGenerationJobQueryOptions,
+  lessonDetailsQueryOptions,
+  saveGeneratedAudioMutationOptions,
+  startAudioGenerationMutationOptions,
+} from "../features/lessons/web/queries/lessons.queries";
+import {
+  AUDIO_GENERATION_INITIAL_PROGRESS_PERCENT,
+  AUDIO_GENERATION_TIMEOUT_MS,
+  AUDIO_SPEED_MAX,
+  AUDIO_SPEED_MIN,
+  AUDIO_SPEED_STEP,
+  DEFAULT_AUDIO_MODEL_ID,
+  DEFAULT_AUDIO_SPEED,
+} from "../features/lessons/lessons.constants";
+import { PERCENTAGE_MAX } from "../features/shared/numeric.constants";
 
-const DEFAULT_AUDIO_MODEL = "kokoro";
 const QWEN_STYLE_OPTIONS = [
   {
     id: "neutral",
@@ -53,51 +62,86 @@ const QWEN_STYLE_OPTIONS = [
 ] as const;
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/")({
-  loader: async ({ params }) => {
-    const [groupDetails, chapter, audioCatalog] = await Promise.all([
-      getAudioGroupDetails({ data: { groupId: params.groupId } }),
-      getChapterDetails({ data: { groupId: params.groupId, chapterId: params.chapterId } }),
-      getAvailableAudioVoices(),
-    ]);
-    if (!groupDetails || !chapter) {
+  loader: async ({ context, params }) => {
+    const lesson = await context.queryClient.ensureQueryData(
+      lessonDetailsQueryOptions(params.groupId, params.chapterId)
+    );
+    if (!lesson) {
       throw notFound({ data: { message: "That lesson does not exist." } });
     }
-    return { group: groupDetails.group, chapter, audioCatalog };
   },
-  pendingComponent: RoutePending,
   errorComponent: RouteError,
   notFoundComponent: RouteNotFound,
   component: LessonIndexPage,
 });
 
 function LessonIndexPage() {
-  const { group, chapter, audioCatalog } = Route.useLoaderData();
-  const router = useRouter();
-  const defaultModelId = audioCatalog.models.defaultModel ?? DEFAULT_AUDIO_MODEL;
-  const defaultModelVoices = audioCatalog.voicesByModel[defaultModelId];
-  const [modelId, setModelId] = useState(defaultModelId);
-  const [voice, setVoice] = useState(defaultModelVoices?.defaultVoice ?? "");
+  const { groupId, chapterId } = Route.useParams();
+  const { data: collectionDetails } = useSuspenseQuery(collectionDetailsQueryOptions(groupId));
+  const { data: lesson } = useSuspenseQuery(lessonDetailsQueryOptions(groupId, chapterId));
+  if (!collectionDetails || !lesson) {
+    throw notFound({ data: { message: "That lesson does not exist." } });
+  }
+  const currentLesson = lesson;
+  const { collection } = collectionDetails;
+  const queryClient = useQueryClient();
+  const audioCatalogQuery = useQuery(audioCatalogQueryOptions());
+  const startGeneration = useMutation(startAudioGenerationMutationOptions());
+  const saveGeneratedAudio = useMutation(saveGeneratedAudioMutationOptions(queryClient));
+  const [jobId, setJobId] = useState<string | null>(null);
+  const generationJob = useQuery(audioGenerationJobQueryOptions(jobId));
+  const savedJobId = useRef<string | null>(null);
+  const generationStatus = generationJob.data?.status;
+  const [hasPollingTimedOut, setHasPollingTimedOut] = useState(false);
+  const audioCatalog = audioCatalogQuery.data;
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const defaultModelId = audioCatalog?.models.defaultModel ?? DEFAULT_AUDIO_MODEL_ID;
+  const modelId = selectedModelId ?? defaultModelId;
+  const defaultModelVoices = audioCatalog?.voicesByModel[modelId];
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const voice = selectedVoiceId ?? defaultModelVoices?.defaultVoice ?? "";
   const [style, setStyle] = useState<(typeof QWEN_STYLE_OPTIONS)[number]["id"]>("neutral");
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(DEFAULT_AUDIO_SPEED);
   const [wavOnly, setWavOnly] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedAudio, setGeneratedAudio] = useState(chapter.generatedAudio);
-  const [generationProgress, setGenerationProgress] = useState<GenerateAudioProgress | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const isJobRunning =
+    jobId !== null &&
+    generationJob.data?.status !== "failed" &&
+    generationJob.data?.status !== "succeeded" &&
+    !hasPollingTimedOut &&
+    !generationJob.isError;
+  const isGenerating = isJobRunning || startGeneration.isPending || saveGeneratedAudio.isPending;
+  const generatedAudio = saveGeneratedAudio.data?.generatedAudio ?? currentLesson.generatedAudio;
+  const generationProgress = generationJob.data?.progress ?? startGeneration.data?.progress ?? null;
+  const error =
+    startGeneration.error?.message ??
+    generationJob.error?.message ??
+    saveGeneratedAudio.error?.message ??
+    (generationJob.data?.status === "failed"
+      ? (generationJob.data.error ?? "Audio generation failed.")
+      : null) ??
+    (generationJob.data?.status === "succeeded" && !generationJob.data.result
+      ? "Audio generation completed without a result."
+      : null) ??
+    (hasPollingTimedOut
+      ? "Audio generation status timed out. The job may still be running."
+      : null) ??
+    null;
 
-  const progressPercent =
-    generationProgress?.total && generationProgress.total > 0
-      ? Math.min(100, Math.round((generationProgress.current / generationProgress.total) * 100))
-      : isGenerating
-        ? 8
-        : 0;
+  let progressPercent = 0;
+  if (generationProgress?.total && generationProgress.total > 0) {
+    progressPercent = Math.min(
+      PERCENTAGE_MAX,
+      Math.round((generationProgress.current / generationProgress.total) * PERCENTAGE_MAX)
+    );
+  } else if (isGenerating) {
+    progressPercent = AUDIO_GENERATION_INITIAL_PROGRESS_PERCENT;
+  }
 
-  const selectedModel = audioCatalog.models.models.find(
+  const selectedModel = audioCatalog?.models.models.find(
     (availableModel) => availableModel.id === modelId
   );
-  const voicesForModel = audioCatalog.voicesByModel[modelId]?.voices ?? [];
+  const voicesForModel = audioCatalog?.voicesByModel[modelId]?.voices ?? [];
   const isQwenModel = modelId.startsWith("qwen-");
   const selectedStyle =
     QWEN_STYLE_OPTIONS.find((option) => option.id === style) ?? QWEN_STYLE_OPTIONS[0];
@@ -113,80 +157,59 @@ function LessonIndexPage() {
     {}
   );
 
-  function wait(milliseconds: number) {
-    return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-  }
+  useEffect(() => {
+    const polled = generationJob.data;
+    if (
+      !jobId ||
+      polled?.status !== "succeeded" ||
+      !polled.result ||
+      savedJobId.current === jobId
+    ) {
+      return;
+    }
+
+    savedJobId.current = jobId;
+    saveGeneratedAudio.mutate(
+      { collectionId: collection.id, lessonId: currentLesson.id, result: polled.result },
+      {
+        onSuccess: ({ generatedAudio: saved }) => {
+          setNotice(`Audio stored in ${saved.lessonOutputDir}.`);
+        },
+      }
+    );
+  }, [collection.id, currentLesson.id, generationJob.data, jobId, saveGeneratedAudio]);
+
+  useEffect(() => {
+    if (!jobId || generationStatus === "failed" || generationStatus === "succeeded") {
+      return undefined;
+    }
+    const timeout = window.setTimeout(() => {
+      setHasPollingTimedOut(true);
+      setJobId(null);
+    }, AUDIO_GENERATION_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [generationStatus, jobId]);
 
   async function generateAudio() {
-    setIsGenerating(true);
-    setGenerationProgress({
-      stage: "starting",
-      current: 0,
-      total: null,
-      message: "Starting audio generation.",
-    });
     setNotice(null);
-    setError(null);
+    setHasPollingTimedOut(false);
 
     try {
-      const started = await startChapterAudioGeneration({
-        data: {
-          groupId: group.id,
-          chapterId: chapter.id,
-          modelId,
-          voice,
-          langCode: selectedVoice?.langCode,
-          speed,
-          instruct:
-            isQwenModel && selectedModel?.supportsInstruct ? selectedStyle.instruct : undefined,
-          wavOnly,
-        },
+      const started = await startGeneration.mutateAsync({
+        collectionId: collection.id,
+        lessonId: currentLesson.id,
+        modelId,
+        voice,
+        langCode: selectedVoice?.langCode,
+        speed,
+        instruct:
+          isQwenModel && selectedModel?.supportsInstruct ? selectedStyle.instruct : undefined,
+        wavOnly,
       });
-
-      setGenerationProgress(started.progress);
-
-      while (true) {
-        await wait(800);
-        const polled = await getAudioGenerationJob(started.jobId);
-
-        setGenerationProgress(polled.progress);
-
-        if (polled.status === "failed") {
-          throw new Error(polled.error ?? "Audio generation failed.");
-        }
-
-        if (polled.status === "succeeded" && polled.result) {
-          const saved = await saveChapterAudioGenerationResult({
-            data: {
-              groupId: group.id,
-              chapterId: chapter.id,
-              result: polled.result,
-            },
-          });
-
-          await router.invalidate({ sync: true });
-          setGeneratedAudio(saved.generatedAudio);
-          setNotice(`Audio stored in ${saved.generatedAudio.lessonOutputDir}.`);
-          return;
-        }
-      }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Audio generation failed.");
-    } finally {
-      setIsGenerating(false);
-      setGenerationProgress(null);
-    }
-  }
-
-  async function copyMarkdownPath() {
-    setCopyNotice(null);
-    setError(null);
-
-    try {
-      await navigator.clipboard.writeText(chapter.markdownPath);
-      setCopyNotice("Markdown path copied.");
+      savedJobId.current = null;
+      setJobId(started.jobId);
     } catch {
-      setError("Could not copy markdown path.");
+      // The mutation exposes its error in the audio panel.
     }
   }
 
@@ -195,131 +218,90 @@ function LessonIndexPage() {
       <Link
         className={buttonVariants({ variant: "link", className: "w-fit px-0" })}
         to="/groups/$groupId"
-        params={{ groupId: group.id }}
+        params={{ groupId: collection.id }}
       >
-        ← Back to group
+        ← Collection overview
       </Link>
 
       <header className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div>
-          <p
-            className="text-xs font-semibold uppercase tracking-widest mb-2"
-            style={{ color: "var(--primary)", fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            Lesson {chapter.order}
+          <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-widest text-primary">
+            Lesson {lesson.order}
           </p>
-          <h1
-            className="mt-0 max-w-3xl text-3xl md:text-5xl font-bold"
-            style={{ fontFamily: "Syne, sans-serif", letterSpacing: "-0.03em" }}
-          >
-            {chapter.title}
+          <h1 className="mt-0 max-w-3xl font-heading text-3xl font-bold tracking-[-0.03em] md:text-5xl">
+            {lesson.title}
           </h1>
         </div>
         <Link
           className={buttonVariants({ variant: "outline" })}
           to="/groups/$groupId/lessons/$chapterId/edit"
-          params={{ groupId: group.id, chapterId: chapter.id }}
+          params={{ groupId: collection.id, chapterId: lesson.id }}
         >
           Edit lesson
         </Link>
       </header>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <MarkdownPreview markdown={chapter.markdown} />
+        <MarkdownPreview markdown={lesson.markdown} />
 
         {/* Audio settings panel */}
         <Card
-          className="rounded-xl"
+          className="rounded-xl border-border bg-card"
           role="complementary"
           aria-label="Audio settings"
-          style={{ background: "var(--card)", border: "1px solid rgba(255,255,255,0.08)" }}
         >
-          <CardHeader className="border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-            <CardTitle style={{ fontFamily: "Syne, sans-serif" }}>Audio Settings</CardTitle>
+          <CardHeader className="border-b border-white/6">
+            <CardTitle className="font-heading">Audio Settings</CardTitle>
             <CardDescription>Generate TTS audio for this lesson.</CardDescription>
           </CardHeader>
 
           <CardContent className="grid gap-5 pt-5">
-            <div
-              className="grid gap-3 rounded-lg p-4"
-              style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <Label
-                className="text-xs uppercase tracking-wider"
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  color: "var(--muted-foreground)",
-                }}
-              >
-                Markdown location
-              </Label>
-              <p
-                className="break-all text-xs leading-relaxed"
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  color: "var(--foreground)",
-                  opacity: 0.8,
-                }}
-              >
-                {chapter.markdownPath}
-              </p>
-              <Button
-                className="w-fit"
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={copyMarkdownPath}
-              >
-                Copy path
-              </Button>
-              {copyNotice ? (
-                <p
-                  className="text-xs"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--primary)" }}
-                >
-                  {copyNotice}
-                </p>
-              ) : null}
-            </div>
-
+            {audioCatalogQuery.isError ? (
+              <Alert variant="destructive">
+                <AlertDescription className="grid gap-3 text-sm">
+                  <span>
+                    The audio generator is unavailable. You can still read and edit this lesson.
+                  </span>
+                  <Button
+                    className="w-fit"
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void audioCatalogQuery.refetch()}
+                  >
+                    Retry audio service
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label
                   htmlFor="model"
-                  className="text-xs uppercase tracking-wider"
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    color: "var(--muted-foreground)",
-                  }}
+                  className="font-mono text-xs uppercase tracking-wider text-muted-foreground"
                 >
                   Model
                 </Label>
                 <Select
                   value={modelId}
+                  disabled={!audioCatalog}
                   onValueChange={(nextModelId) => {
                     if (!nextModelId) {
                       return;
                     }
 
-                    setModelId(nextModelId);
-                    const nextVoices = audioCatalog.voicesByModel[nextModelId];
+                    setSelectedModelId(nextModelId);
+                    const nextVoices = audioCatalog?.voicesByModel[nextModelId];
                     if (nextVoices) {
-                      setVoice(nextVoices.defaultVoice);
+                      setSelectedVoiceId(nextVoices.defaultVoice);
                     }
                   }}
                 >
-                  <SelectTrigger
-                    id="model"
-                    className="w-full"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
-                  >
+                  <SelectTrigger id="model" className="w-full font-mono text-[0.82rem]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {audioCatalog.models.models.map((availableModel) => (
+                    {audioCatalog?.models.models.map((availableModel) => (
                       <SelectItem key={availableModel.id} value={availableModel.id}>
                         {availableModel.name}
                       </SelectItem>
@@ -331,27 +313,20 @@ function LessonIndexPage() {
               <div className="grid gap-2">
                 <Label
                   htmlFor="voice"
-                  className="text-xs uppercase tracking-wider"
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    color: "var(--muted-foreground)",
-                  }}
+                  className="font-mono text-xs uppercase tracking-wider text-muted-foreground"
                 >
                   Voice
                 </Label>
                 <Select
                   value={voice}
+                  disabled={!audioCatalog}
                   onValueChange={(nextVoice) => {
                     if (nextVoice) {
-                      setVoice(nextVoice);
+                      setSelectedVoiceId(nextVoice);
                     }
                   }}
                 >
-                  <SelectTrigger
-                    id="voice"
-                    className="w-full"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
-                  >
+                  <SelectTrigger id="voice" className="w-full font-mono text-[0.82rem]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -369,13 +344,7 @@ function LessonIndexPage() {
                   </SelectContent>
                 </Select>
                 {selectedVoice ? (
-                  <p
-                    className="text-xs"
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      color: "var(--muted-foreground)",
-                    }}
-                  >
+                  <p className="font-mono text-xs text-muted-foreground">
                     {selectedVoice.language} · {selectedVoice.gender}
                   </p>
                 ) : null}
@@ -384,11 +353,7 @@ function LessonIndexPage() {
               <div className="grid gap-2">
                 <Label
                   htmlFor="style"
-                  className="text-xs uppercase tracking-wider"
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    color: "var(--muted-foreground)",
-                  }}
+                  className="font-mono text-xs uppercase tracking-wider text-muted-foreground"
                 >
                   Style
                 </Label>
@@ -402,11 +367,7 @@ function LessonIndexPage() {
                     }
                   }}
                 >
-                  <SelectTrigger
-                    id="style"
-                    className="w-full"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}
-                  >
+                  <SelectTrigger id="style" className="w-full font-mono text-[0.82rem]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -421,58 +382,37 @@ function LessonIndexPage() {
 
               <div className="flex items-center gap-2">
                 <div className="order-2 flex shrink-0 items-center gap-2">
-                  <Label
-                    htmlFor="speed"
-                    className="sr-only"
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      color: "var(--muted-foreground)",
-                    }}
-                  >
+                  <Label htmlFor="speed" className="sr-only font-mono text-muted-foreground">
                     Speed
                   </Label>
-                  <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-                    {speed.toFixed(2)}x
-                  </span>
+                  <span className="font-mono text-xs">{speed.toFixed(2)}x</span>
                 </div>
                 <Slider
                   id="speed"
                   className="order-1 min-w-24 flex-1"
-                  min={0.25}
-                  max={2}
-                  step={0.05}
+                  min={AUDIO_SPEED_MIN}
+                  max={AUDIO_SPEED_MAX}
+                  step={AUDIO_SPEED_STEP}
                   value={[speed]}
-                  onValueChange={(value) => {
-                    const nextSpeed = Array.isArray(value) ? value[0] : value;
+                  onValueChange={(value: number | readonly number[]) => {
+                    // Base UI's callback metadata currently reaches type-aware lint as any.
+                    // oxlint-disable-next-line typescript/no-unsafe-assignment
+                    const nextSpeed = Array.isArray(value) ? value.at(0) : value;
 
                     if (typeof nextSpeed === "number") {
                       setSpeed(nextSpeed);
                     }
                   }}
                 />
-                <div
-                  className="hidden justify-between text-xs"
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    color: "var(--muted-foreground)",
-                  }}
-                >
+                <div className="hidden justify-between font-mono text-xs text-muted-foreground">
                   <span>0.25x</span>
                   <span>2x</span>
                 </div>
               </div>
 
               <Label className="flex cursor-pointer select-none items-center gap-2">
-                <Checkbox
-                  checked={wavOnly}
-                  onCheckedChange={(checked) => setWavOnly(Boolean(checked))}
-                />
-                <span
-                  className="whitespace-nowrap text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  WAV-only
-                </span>
+                <Checkbox checked={wavOnly} onCheckedChange={(checked) => setWavOnly(checked)} />
+                <span className="whitespace-nowrap text-sm text-muted-foreground">WAV-only</span>
               </Label>
             </div>
 
@@ -481,8 +421,7 @@ function LessonIndexPage() {
               className="btn-generate w-full font-semibold tracking-wide"
               type="button"
               onClick={generateAudio}
-              disabled={isGenerating}
-              style={{ fontFamily: "Syne, sans-serif", letterSpacing: "0.03em" }}
+              disabled={isGenerating || !audioCatalog || !voice}
             >
               {isGenerating ? (
                 <span className="flex items-center gap-2">
@@ -497,28 +436,18 @@ function LessonIndexPage() {
             {isGenerating && generationProgress ? (
               <div className="grid gap-2">
                 <div
-                  className="h-2 overflow-hidden rounded-full"
-                  style={{ background: "rgba(255,255,255,0.08)" }}
+                  className="h-2 overflow-hidden rounded-full bg-white/8"
                   role="progressbar"
                   aria-valuenow={progressPercent}
                   aria-valuemin={0}
-                  aria-valuemax={100}
+                  aria-valuemax={PERCENTAGE_MAX}
                 >
                   <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${progressPercent}%`,
-                      background: "linear-gradient(90deg, #e8963a, #f5b86a)",
-                    }}
+                    className="h-full rounded-full bg-linear-to-r from-primary to-[#f5b86a] transition-all"
+                    style={{ width: `${progressPercent}%` }}
                   />
                 </div>
-                <p
-                  className="text-xs leading-relaxed"
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    color: "var(--muted-foreground)",
-                  }}
-                >
+                <p className="font-mono text-xs leading-relaxed text-muted-foreground">
                   {generationProgress.message}
                 </p>
               </div>
@@ -526,28 +455,12 @@ function LessonIndexPage() {
 
             {/* Last generated result */}
             {generatedAudio && (
-              <div
-                className="rounded-lg p-4 grid gap-3"
-                style={{
-                  background: "rgba(232,150,58,0.06)",
-                  border: "1px solid rgba(232,150,58,0.15)",
-                }}
-              >
+              <div className="grid gap-3 rounded-lg border border-primary/15 bg-primary/6 p-4">
                 <div className="flex items-center justify-between">
-                  <span
-                    className="text-xs font-semibold uppercase tracking-wider"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--primary)" }}
-                  >
+                  <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
                     Last Generated
                   </span>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                    style={{
-                      background: "rgba(232,150,58,0.15)",
-                      color: "var(--primary)",
-                      fontFamily: "'IBM Plex Mono', monospace",
-                    }}
-                  >
+                  <span className="rounded-full bg-primary/15 px-2 py-0.5 font-mono text-xs font-semibold text-primary">
                     {generatedAudio.formattedDuration}
                   </span>
                 </div>
@@ -573,38 +486,17 @@ function LessonIndexPage() {
                       : []),
                   ].map(({ label, value }) => (
                     <div key={label} className="grid gap-0.5">
-                      <dt
-                        className="text-xs uppercase"
-                        style={{
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          color: "var(--muted-foreground)",
-                          fontSize: "0.65rem",
-                          letterSpacing: "0.08em",
-                        }}
-                      >
+                      <dt className="font-mono text-[0.65rem] uppercase tracking-[0.08em] text-muted-foreground">
                         {label}
                       </dt>
-                      <dd
-                        className="text-xs break-all leading-relaxed"
-                        style={{
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          color: "var(--foreground)",
-                          opacity: 0.8,
-                        }}
-                      >
+                      <dd className="break-all font-mono text-xs leading-relaxed text-foreground/80">
                         {value}
                       </dd>
                     </div>
                   ))}
                 </dl>
 
-                <div
-                  className="flex gap-3 text-xs"
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    color: "var(--muted-foreground)",
-                  }}
-                >
+                <div className="flex gap-3 font-mono text-xs text-muted-foreground">
                   <span>{generatedAudio.chunkCount} chunks</span>
                   <span>·</span>
                   <span>{generatedAudio.cleanedCharacterCount.toLocaleString()} chars</span>

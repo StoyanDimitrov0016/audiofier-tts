@@ -1,17 +1,17 @@
 import { z } from "zod";
 
 import { GenerateAudioJobStatusSchema } from "./audio-schemas";
-
-const DEFAULT_AUDIO_GENERATOR_URL = "http://127.0.0.1:8765";
+import { DEFAULT_AUDIO_GENERATOR_URL } from "./audio.constants";
 
 function getAudioGeneratorUrl() {
+  // Vite exposes user-defined environment keys dynamically.
+  // oxlint-disable-next-line typescript/no-unsafe-return
   return import.meta.env.VITE_AUDIO_GENERATOR_URL ?? DEFAULT_AUDIO_GENERATOR_URL;
 }
 
-const AudioGeneratorApiErrorSchema = z.object({
-  ok: z.literal(false),
-  error: z.string(),
-});
+const AudioGeneratorApiErrorSchema = z.compile(
+  z.object({ ok: z.literal(false), error: z.string() })
+);
 
 async function readAudioResponse<T extends object>(
   response: Response,
@@ -33,7 +33,7 @@ async function readAudioResponse<T extends object>(
   return schema.parse(payload);
 }
 
-export async function getAudioGenerationJob(jobId: string) {
-  const response = await fetch(`${getAudioGeneratorUrl()}/jobs/${jobId}`);
+export async function getAudioGenerationJob(jobId: string, signal?: AbortSignal) {
+  const response = await fetch(`${getAudioGeneratorUrl()}/jobs/${jobId}`, { signal });
   return readAudioResponse(response, GenerateAudioJobStatusSchema);
 }

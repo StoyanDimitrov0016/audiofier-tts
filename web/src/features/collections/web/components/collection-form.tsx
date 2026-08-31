@@ -1,20 +1,23 @@
-import { useAppForm } from "./app-form";
-import { Button } from "./ui/button";
-import { GroupFormSchema, type GroupFormValues } from "../lib/lesson-schemas";
+import { useAppForm } from "@/components/app-form";
+import { Button } from "@/components/ui/button";
+import {
+  CollectionFormSchema,
+  type CollectionFormValues,
+} from "@/features/collections/collections.schemas";
 
 interface Props {
-  initialValues: GroupFormValues;
+  initialValues: CollectionFormValues;
   submitLabel: string;
   pendingLabel: string;
   isSubmitting: boolean;
-  onSubmit: (values: GroupFormValues) => Promise<void>;
+  onSubmit: (values: CollectionFormValues) => Promise<void>;
 }
 
-export default function GroupForm(props: Props) {
+export default function CollectionForm(props: Props) {
   const form = useAppForm({
     defaultValues: props.initialValues,
     validators: {
-      onChange: GroupFormSchema,
+      onChange: CollectionFormSchema,
     },
     onSubmit: async ({ value }) => {
       await props.onSubmit({
@@ -33,27 +36,22 @@ export default function GroupForm(props: Props) {
         void form.handleSubmit();
       }}
     >
-      <form.AppField
-        name="title"
-        children={(field) => (
-          <field.TextField label="Group title" placeholder="Book or course title" />
-        )}
-      />
+      <form.AppField name="title">
+        {(field) => <field.TextField label="Collection title" placeholder="Book or course title" />}
+      </form.AppField>
 
-      <form.AppField
-        name="description"
-        children={(field) => (
+      <form.AppField name="description">
+        {(field) => (
           <field.TextareaField
             label="Description"
             className="min-h-24 resize-y"
             placeholder="Optional"
           />
         )}
-      />
+      </form.AppField>
 
-      <form.Subscribe
-        selector={(state) => [state.canSubmit, state.isSubmitting] as const}
-        children={(state) => {
+      <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+        {(state) => {
           const [canSubmit] = state;
 
           return (
@@ -64,7 +62,7 @@ export default function GroupForm(props: Props) {
             </div>
           );
         }}
-      />
+      </form.Subscribe>
     </form>
   );
 }
