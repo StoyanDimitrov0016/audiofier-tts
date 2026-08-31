@@ -7,17 +7,15 @@ import {
   GenerateAudioJobStatusSchema,
 } from "../lib/audio-schemas";
 import type { GenerateAudioInput } from "../lib/audio-types";
-
-const DEFAULT_AUDIO_GENERATOR_URL = "http://127.0.0.1:8765";
+import { DEFAULT_AUDIO_GENERATOR_URL } from "../lib/audio.constants";
 
 function getAudioGeneratorUrl() {
   return process.env.AUDIO_GENERATOR_URL ?? DEFAULT_AUDIO_GENERATOR_URL;
 }
 
-const AudioGeneratorApiErrorSchema = z.object({
-  ok: z.literal(false),
-  error: z.string(),
-});
+const AudioGeneratorApiErrorSchema = z.compile(
+  z.object({ ok: z.literal(false), error: z.string() })
+);
 
 function validateGenerateInput(input: unknown): GenerateAudioInput {
   return GenerateAudioInputSchema.parse(input);
@@ -27,7 +25,8 @@ async function readAudioResponse<T extends object>(
   response: Response,
   schema: z.ZodType<T>
 ): Promise<T> {
-  const payload = await response.json();
+  // The Fetch API types response.json() as any; schemas below establish the boundary.
+  const payload: unknown = await response.json();
   const apiError = AudioGeneratorApiErrorSchema.safeParse(payload);
 
   if (!response.ok) {
