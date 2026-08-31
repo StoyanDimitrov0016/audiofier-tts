@@ -23,12 +23,17 @@ function validateGenerateInput(input: unknown): GenerateAudioInput {
   return GenerateAudioInputSchema.parse(input);
 }
 
-async function readAudioResponse<T extends object>(response: Response, schema: z.ZodType<T>): Promise<T> {
+async function readAudioResponse<T extends object>(
+  response: Response,
+  schema: z.ZodType<T>
+): Promise<T> {
   const payload = await response.json();
   const apiError = AudioGeneratorApiErrorSchema.safeParse(payload);
 
   if (!response.ok) {
-    throw new Error(apiError.success ? apiError.data.error : `Audio generator returned ${response.status}`);
+    throw new Error(
+      apiError.success ? apiError.data.error : `Audio generator returned ${response.status}`
+    );
   }
 
   if (apiError.success) {

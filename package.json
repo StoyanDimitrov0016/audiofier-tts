@@ -1,11 +1,6 @@
 {
   "name": "audiofier-tts",
   "private": true,
-  "packageManager": "npm@12.0.2",
-  "engines": {
-    "node": "24.x",
-    "npm": "12.x"
-  },
   "workspaces": [
     "audio-generator",
     "web"
@@ -14,13 +9,19 @@
     "dev": "turbo dev --env-mode=loose",
     "dev:audio": "turbo dev --filter=audiofier-audio-generator --env-mode=loose",
     "dev:web": "turbo dev --filter=audiofier-web --env-mode=loose",
+    "db:start": "docker compose up -d --wait",
+    "db:stop": "docker compose stop",
+    "db:generate": "npm run db:generate -w audiofier-web",
+    "db:migrate": "npm run db:migrate -w audiofier-web",
+    "db:import": "npm run db:import -w audiofier-web",
     "setup": "npm install && npm run setup:audio",
     "setup:audio": "npm run setup -w audiofier-audio-generator",
     "doctor": "node ./scripts/doctor.mjs",
     "build": "turbo build",
-    "format": "prettier --write . && npm run format -w audiofier-audio-generator",
-    "format:check": "prettier --check . && npm run format:check -w audiofier-audio-generator",
-    "lint": "eslint . && npm run lint -w audiofier-audio-generator",
+    "format": "oxfmt web package.json turbo.json scripts && npm run format -w audiofier-audio-generator",
+    "format:check": "oxfmt --check web package.json turbo.json scripts && npm run format:check -w audiofier-audio-generator",
+    "lint": "oxlint web --type-aware --deny-warnings --report-unused-disable-directives --react-plugin --import-plugin && npm run lint -w audiofier-audio-generator",
+    "lint:fix": "oxlint web --type-aware --fix --react-plugin --import-plugin",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
@@ -32,8 +33,16 @@
     "eslint": "10.0.1",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.1.1",
+    "oxfmt": "0.65.0",
+    "oxlint": "1.80.0",
+    "oxlint-tsgolint": "7.0.2001",
     "prettier": "3.9.6",
     "turbo": "2.10.11",
     "typescript-eslint": "8.68.0"
-  }
+  },
+  "engines": {
+    "node": "24.x",
+    "npm": "12.x"
+  },
+  "packageManager": "npm@12.0.2"
 }

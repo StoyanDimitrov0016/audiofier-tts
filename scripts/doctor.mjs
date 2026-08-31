@@ -40,7 +40,10 @@ checkCommand("uv", "uv", ["--version"]);
 checkCommand("FFmpeg", "ffmpeg", ["-version"]);
 checkCommand("FFprobe", "ffprobe", ["-version"]);
 checkCommand("SoX", "sox", ["--version"]);
-checkCommand("NVIDIA driver", "nvidia-smi", ["--query-gpu=name,driver_version", "--format=csv,noheader"]);
+checkCommand("NVIDIA driver", "nvidia-smi", [
+  "--query-gpu=name,driver_version",
+  "--format=csv,noheader",
+]);
 checkCommand("uv lock", "uv", ["lock", "--project", "audio-generator", "--check"]);
 checkCommand(
   "Python 3.12 environment",
@@ -67,7 +70,10 @@ checkFile("Kokoro config", ".local-tts-ai/models/kokoro-82m/config.json");
 checkFile("Kokoro weights", ".local-tts-ai/models/kokoro-82m/kokoro-v1_0.pth");
 for (const size of ["0-6b", "1-7b"]) {
   checkFile(`Qwen ${size} config`, `.local-tts-ai/models/qwen3-tts-${size}-custom/config.json`);
-  checkFile(`Qwen ${size} weights`, `.local-tts-ai/models/qwen3-tts-${size}-custom/model.safetensors`);
+  checkFile(
+    `Qwen ${size} weights`,
+    `.local-tts-ai/models/qwen3-tts-${size}-custom/model.safetensors`
+  );
 }
 
 const ollama = run("ollama", ["--version"]);

@@ -35,7 +35,10 @@ function GroupsIndexPage() {
       </header>
 
       {library.groups.length === 0 ? (
-        <Card className="rounded-xl" style={{ background: "var(--card)", border: "1px solid rgba(255,255,255,0.08)" }}>
+        <Card
+          className="rounded-xl"
+          style={{ background: "var(--card)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
           <CardContent className="py-8 text-center">
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
               Create a group to start storing lessons.
@@ -46,10 +49,16 @@ function GroupsIndexPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {library.groups.map((group) => {
             const chapterCount = library.chaptersByGroup[group.id]?.length ?? 0;
-            const generatedCount = library.chaptersByGroup[group.id]?.filter((c) => c.generatedAudio).length ?? 0;
+            const generatedCount =
+              library.chaptersByGroup[group.id]?.filter((c) => c.generatedAudio).length ?? 0;
 
             return (
-              <Link className="no-underline" key={group.id} to="/groups/$groupId" params={{ groupId: group.id }}>
+              <Link
+                className="no-underline"
+                key={group.id}
+                to="/groups/$groupId"
+                params={{ groupId: group.id }}
+              >
                 <Card
                   className="h-full rounded-xl transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg"
                   style={{
@@ -66,10 +75,17 @@ function GroupsIndexPage() {
                     >
                       {group.title}
                     </CardTitle>
-                    <CardDescription className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                    <CardDescription
+                      className="text-xs"
+                      style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    >
                       {chapterCount} lesson{chapterCount !== 1 ? "s" : ""}
                       {chapterCount > 0 && (
-                        <span style={{ color: generatedCount === chapterCount ? "var(--primary)" : "inherit" }}>
+                        <span
+                          style={{
+                            color: generatedCount === chapterCount ? "var(--primary)" : "inherit",
+                          }}
+                        >
                           {" "}
                           · {generatedCount}/{chapterCount} generated
                         </span>
@@ -78,7 +94,10 @@ function GroupsIndexPage() {
                   </CardHeader>
                   {group.description && (
                     <CardContent>
-                      <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "var(--muted-foreground)" }}>
+                      <p
+                        className="text-xs leading-relaxed line-clamp-2"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
                         {group.description}
                       </p>
                     </CardContent>

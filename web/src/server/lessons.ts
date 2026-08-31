@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { getAudioModelVoices, getAudioModels, startAudioGenerationJob } from "./audio-generator-api";
+import {
+  getAudioModelVoices,
+  getAudioModels,
+  startAudioGenerationJob,
+} from "./audio-generator-api";
 import { slugify } from "./lib/persistence";
 import {
   CreateChapterInputSchema,

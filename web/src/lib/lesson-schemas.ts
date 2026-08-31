@@ -4,7 +4,10 @@ import { GenerateAudioResultSchema } from "./audio-schemas";
 
 export const StorageIdSchema = z
   .string()
-  .regex(/^[a-z0-9][a-z0-9._-]{0,79}$/, "Use lowercase letters, numbers, dots, dashes, or underscores.");
+  .regex(
+    /^[a-z0-9][a-z0-9._-]{0,79}$/,
+    "Use lowercase letters, numbers, dots, dashes, or underscores."
+  );
 
 export const GroupFormSchema = z.object({
   title: z.string().trim().min(1, "Group title is required."),

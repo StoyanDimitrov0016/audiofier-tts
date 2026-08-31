@@ -81,7 +81,9 @@ function NewLessonPage() {
       </Link>
       <header>
         <p className="text-sm font-bold uppercase text-primary">New lesson</p>
-        <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{group.title}</h1>
+        <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
+          {group.title}
+        </h1>
       </header>
 
       <Card className="rounded-lg">

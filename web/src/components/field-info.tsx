@@ -9,6 +9,8 @@ export default function FieldInfo() {
       }
 
       if (error && typeof error === "object" && "message" in error) {
+        // TanStack Form's heterogeneous error array currently exposes this entry as any.
+        // oxlint-disable-next-line typescript/no-unsafe-member-access
         return String(error.message);
       }
 

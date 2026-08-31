@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    "node_modules/**",
+    ".tanstack-reinit/**",
+    ".tanstack-reinit-clean/**",
+    "dist/**",
+    ".output/**",
+    "coverage/**",
+    "package-lock.json",
+    "audio-generator/**"
+  ],
+  "printWidth": 100,
+  "singleQuote": false,
+  "trailingComma": "es5"
+}

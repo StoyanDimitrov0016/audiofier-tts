@@ -45,7 +45,10 @@ function GroupIndexPage() {
             {group.title}
           </h1>
           {group.description && (
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            <p
+              className="mt-3 max-w-3xl text-sm leading-relaxed"
+              style={{ color: "var(--muted-foreground)" }}
+            >
               {group.description}
             </p>
           )}
@@ -58,14 +61,21 @@ function GroupIndexPage() {
           >
             Edit group
           </Link>
-          <Link className={buttonVariants()} to="/groups/$groupId/lessons/new" params={{ groupId: group.id }}>
+          <Link
+            className={buttonVariants()}
+            to="/groups/$groupId/lessons/new"
+            params={{ groupId: group.id }}
+          >
             New lesson
           </Link>
         </div>
       </header>
 
       {chapters.length === 0 ? (
-        <Card className="rounded-xl" style={{ background: "var(--card)", border: "1px solid rgba(255,255,255,0.08)" }}>
+        <Card
+          className="rounded-xl"
+          style={{ background: "var(--card)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
           <div className="px-4 py-8 text-center">
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
               Add lessons to audiofy this group in smaller files.
@@ -130,7 +140,9 @@ function GroupIndexPage() {
                           }),
                     }}
                   >
-                    {chapter.generatedAudio ? `✓ ${chapter.generatedAudio.formattedDuration}` : "not generated"}
+                    {chapter.generatedAudio
+                      ? `✓ ${chapter.generatedAudio.formattedDuration}`
+                      : "not generated"}
                   </span>
                 </CardHeader>
               </Card>

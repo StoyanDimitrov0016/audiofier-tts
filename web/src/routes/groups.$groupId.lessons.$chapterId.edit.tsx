@@ -8,7 +8,12 @@ import RoutePending from "../components/route-pending";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button, buttonVariants } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import { deleteChapter, getAudioGroupDetails, getChapterDetails, updateChapter } from "../server/lessons";
+import {
+  deleteChapter,
+  getAudioGroupDetails,
+  getChapterDetails,
+  updateChapter,
+} from "../server/lessons";
 import type { LessonEditorValues } from "../lib/lesson-schemas";
 
 export const Route = createFileRoute("/groups/$groupId/lessons/$chapterId/edit")({
@@ -118,9 +123,17 @@ function EditLessonPage() {
       <header className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div>
           <p className="text-sm font-bold uppercase text-primary">Edit lesson</p>
-          <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">{chapter.title}</h1>
+          <h1 className="mt-1 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
+            {chapter.title}
+          </h1>
         </div>
-        <Button className="w-fit" variant="destructive" type="button" onClick={removeLesson} disabled={isDeleting}>
+        <Button
+          className="w-fit"
+          variant="destructive"
+          type="button"
+          onClick={removeLesson}
+          disabled={isDeleting}
+        >
           {isDeleting ? "Deleting..." : "Delete lesson"}
         </Button>
       </header>

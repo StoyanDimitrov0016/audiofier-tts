@@ -94,16 +94,24 @@ function LessonIndexPage() {
         ? 8
         : 0;
 
-  const selectedModel = audioCatalog.models.models.find((availableModel) => availableModel.id === modelId);
+  const selectedModel = audioCatalog.models.models.find(
+    (availableModel) => availableModel.id === modelId
+  );
   const voicesForModel = audioCatalog.voicesByModel[modelId]?.voices ?? [];
   const isQwenModel = modelId.startsWith("qwen-");
-  const selectedStyle = QWEN_STYLE_OPTIONS.find((option) => option.id === style) ?? QWEN_STYLE_OPTIONS[0];
-  const selectedVoice = voicesForModel.find((availableVoice: AudioVoice) => availableVoice.id === voice);
-  const voicesByLanguage = voicesForModel.reduce<Record<string, AudioVoice[]>>((groups, availableVoice) => {
-    groups[availableVoice.language] ??= [];
-    groups[availableVoice.language].push(availableVoice);
-    return groups;
-  }, {});
+  const selectedStyle =
+    QWEN_STYLE_OPTIONS.find((option) => option.id === style) ?? QWEN_STYLE_OPTIONS[0];
+  const selectedVoice = voicesForModel.find(
+    (availableVoice: AudioVoice) => availableVoice.id === voice
+  );
+  const voicesByLanguage = voicesForModel.reduce<Record<string, AudioVoice[]>>(
+    (groups, availableVoice) => {
+      groups[availableVoice.language] ??= [];
+      groups[availableVoice.language].push(availableVoice);
+      return groups;
+    },
+    {}
+  );
 
   function wait(milliseconds: number) {
     return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -129,7 +137,8 @@ function LessonIndexPage() {
           voice,
           langCode: selectedVoice?.langCode,
           speed,
-          instruct: isQwenModel && selectedModel?.supportsInstruct ? selectedStyle.instruct : undefined,
+          instruct:
+            isQwenModel && selectedModel?.supportsInstruct ? selectedStyle.instruct : undefined,
           wavOnly,
         },
       });
@@ -233,25 +242,44 @@ function LessonIndexPage() {
           <CardContent className="grid gap-5 pt-5">
             <div
               className="grid gap-3 rounded-lg p-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
             >
               <Label
                 className="text-xs uppercase tracking-wider"
-                style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  color: "var(--muted-foreground)",
+                }}
               >
                 Markdown location
               </Label>
               <p
                 className="break-all text-xs leading-relaxed"
-                style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--foreground)", opacity: 0.8 }}
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  color: "var(--foreground)",
+                  opacity: 0.8,
+                }}
               >
                 {chapter.markdownPath}
               </p>
-              <Button className="w-fit" type="button" variant="outline" size="sm" onClick={copyMarkdownPath}>
+              <Button
+                className="w-fit"
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={copyMarkdownPath}
+              >
                 Copy path
               </Button>
               {copyNotice ? (
-                <p className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--primary)" }}>
+                <p
+                  className="text-xs"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--primary)" }}
+                >
                   {copyNotice}
                 </p>
               ) : null}
@@ -262,7 +290,10 @@ function LessonIndexPage() {
                 <Label
                   htmlFor="model"
                   className="text-xs uppercase tracking-wider"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: "var(--muted-foreground)",
+                  }}
                 >
                   Model
                 </Label>
@@ -301,7 +332,10 @@ function LessonIndexPage() {
                 <Label
                   htmlFor="voice"
                   className="text-xs uppercase tracking-wider"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: "var(--muted-foreground)",
+                  }}
                 >
                   Voice
                 </Label>
@@ -337,7 +371,10 @@ function LessonIndexPage() {
                 {selectedVoice ? (
                   <p
                     className="text-xs"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      color: "var(--muted-foreground)",
+                    }}
                   >
                     {selectedVoice.language} · {selectedVoice.gender}
                   </p>
@@ -348,7 +385,10 @@ function LessonIndexPage() {
                 <Label
                   htmlFor="style"
                   className="text-xs uppercase tracking-wider"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: "var(--muted-foreground)",
+                  }}
                 >
                   Style
                 </Label>
@@ -384,7 +424,10 @@ function LessonIndexPage() {
                   <Label
                     htmlFor="speed"
                     className="sr-only"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      color: "var(--muted-foreground)",
+                    }}
                   >
                     Speed
                   </Label>
@@ -409,7 +452,10 @@ function LessonIndexPage() {
                 />
                 <div
                   className="hidden justify-between text-xs"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: "var(--muted-foreground)",
+                  }}
                 >
                   <span>0.25x</span>
                   <span>2x</span>
@@ -417,8 +463,14 @@ function LessonIndexPage() {
               </div>
 
               <Label className="flex cursor-pointer select-none items-center gap-2">
-                <Checkbox checked={wavOnly} onCheckedChange={(checked) => setWavOnly(Boolean(checked))} />
-                <span className="whitespace-nowrap text-sm" style={{ color: "var(--muted-foreground)" }}>
+                <Checkbox
+                  checked={wavOnly}
+                  onCheckedChange={(checked) => setWavOnly(Boolean(checked))}
+                />
+                <span
+                  className="whitespace-nowrap text-sm"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
                   WAV-only
                 </span>
               </Label>
@@ -462,7 +514,10 @@ function LessonIndexPage() {
                 </div>
                 <p
                   className="text-xs leading-relaxed"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: "var(--muted-foreground)",
+                  }}
                 >
                   {generationProgress.message}
                 </p>
@@ -473,7 +528,10 @@ function LessonIndexPage() {
             {generatedAudio && (
               <div
                 className="rounded-lg p-4 grid gap-3"
-                style={{ background: "rgba(232,150,58,0.06)", border: "1px solid rgba(232,150,58,0.15)" }}
+                style={{
+                  background: "rgba(232,150,58,0.06)",
+                  border: "1px solid rgba(232,150,58,0.15)",
+                }}
               >
                 <div className="flex items-center justify-between">
                   <span
@@ -496,13 +554,23 @@ function LessonIndexPage() {
 
                 <dl className="grid gap-2.5">
                   {[
-                    ...(generatedAudio.modelId ? [{ label: "model", value: generatedAudio.modelId }] : []),
-                    ...(generatedAudio.voice ? [{ label: "voice", value: generatedAudio.voice }] : []),
-                    ...(generatedAudio.instruct ? [{ label: "style", value: generatedAudio.instruct }] : []),
-                    ...(generatedAudio.modelSource ? [{ label: "source", value: generatedAudio.modelSource }] : []),
+                    ...(generatedAudio.modelId
+                      ? [{ label: "model", value: generatedAudio.modelId }]
+                      : []),
+                    ...(generatedAudio.voice
+                      ? [{ label: "voice", value: generatedAudio.voice }]
+                      : []),
+                    ...(generatedAudio.instruct
+                      ? [{ label: "style", value: generatedAudio.instruct }]
+                      : []),
+                    ...(generatedAudio.modelSource
+                      ? [{ label: "source", value: generatedAudio.modelSource }]
+                      : []),
                     { label: "output", value: generatedAudio.lessonOutputDir },
                     { label: "wav", value: generatedAudio.wavPath },
-                    ...(generatedAudio.mp3Path ? [{ label: "mp3", value: generatedAudio.mp3Path }] : []),
+                    ...(generatedAudio.mp3Path
+                      ? [{ label: "mp3", value: generatedAudio.mp3Path }]
+                      : []),
                   ].map(({ label, value }) => (
                     <div key={label} className="grid gap-0.5">
                       <dt
@@ -518,7 +586,11 @@ function LessonIndexPage() {
                       </dt>
                       <dd
                         className="text-xs break-all leading-relaxed"
-                        style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--foreground)", opacity: 0.8 }}
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          color: "var(--foreground)",
+                          opacity: 0.8,
+                        }}
                       >
                         {value}
                       </dd>
@@ -528,7 +600,10 @@ function LessonIndexPage() {
 
                 <div
                   className="flex gap-3 text-xs"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--muted-foreground)" }}
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: "var(--muted-foreground)",
+                  }}
                 >
                   <span>{generatedAudio.chunkCount} chunks</span>
                   <span>·</span>

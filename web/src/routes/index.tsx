@@ -29,15 +29,15 @@ function HomePage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground leading-relaxed">
-            Create audio groups, split long material into lessons, edit markdown, and generate audio one lesson at a
-            time.
+            Create audio groups, split long material into lessons, edit markdown, and generate audio
+            one lesson at a time.
           </p>
 
           {/* Decorative waveform bars */}
           <div className="mt-6 flex items-end gap-0.5 h-10 opacity-20" aria-hidden="true">
             {[
-              3, 5, 8, 6, 9, 7, 10, 5, 8, 6, 9, 4, 7, 10, 6, 8, 5, 9, 7, 6, 8, 5, 9, 10, 7, 6, 8, 5, 9, 4, 7, 10, 6, 8,
-              5,
+              3, 5, 8, 6, 9, 7, 10, 5, 8, 6, 9, 4, 7, 10, 6, 8, 5, 9, 7, 6, 8, 5, 9, 10, 7, 6, 8, 5,
+              9, 4, 7, 10, 6, 8, 5,
             ].map((h, i) => (
               <div
                 key={i}
